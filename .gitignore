@@ -1,0 +1,16 @@
+
+# Large model/data artifacts
+
+# Generated outputs
+work_dirs/*
+outputs/*
+wandb/
+mmpose.egg-info/
+
+# Python/cache
+__pycache__/
+*.pyc
+
+# Keep placeholders/docs if needed
+!work_dirs/.gitkeep
+!pretrained/README.md
