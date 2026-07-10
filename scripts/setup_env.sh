@@ -43,7 +43,7 @@ echo "Installing local ViTPose/MMPose repository..."
 
 cd "${REPO_ROOT}"
 python -m pip install -v -e .
-python -m pip install timm==0.4.9 einops
+python -m pip install timm==0.4.9 einops==0.8.1
 
 echo
 echo "Checking package consistency..."
@@ -78,6 +78,10 @@ print("timm:", timm.__version__)
 
 import einops
 print("einops:", einops.__version__)
+
+from mmpose.models import build_posenet   # exercises model registry
+x = (torch.randn(8, device="cuda") * 2).sum()  # forces a real CUDA kernel
+print("CUDA compute OK:", float(x) == float(x))
 PY
 
 echo
