@@ -33,21 +33,17 @@ fi
 conda activate "${ENV_NAME}"
 
 echo
-echo "Installing MMCV v1.3.9 from source..."
+echo "Installing MMCV v1.3.9 prebuilt wheel..."
 
-git clone https://github.com/open-mmlab/mmcv.git "$MMCV_DIR"
-
-cd "${MMCV_DIR}"
-git checkout v1.3.9
-
-MMCV_WITH_OPS=1 pip install -e .
+python -m pip install mmcv-full==1.3.9 \
+  -f https://download.openmmlab.com/mmcv/dist/cu111/torch1.9.0/index.html
 
 echo
 echo "Installing local ViTPose/MMPose repository..."
 
 cd "${REPO_ROOT}"
-pip install -v -e .
-pip install timm==0.4.9 einops
+python -m pip install -v -e .
+python -m pip install timm==0.4.9 einops
 
 echo
 echo "Checking package consistency..."
