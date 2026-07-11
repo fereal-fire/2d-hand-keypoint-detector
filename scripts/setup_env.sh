@@ -19,6 +19,13 @@ if ! command -v conda >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! ldconfig -p 2>/dev/null | grep -q "libGL.so.1"; then
+  echo "ERROR: libGL.so.1 is missing."
+  echo
+  echo "OpenCV needs this system library. On Ubuntu/Debian, install it with:"
+  echo "  sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0"
+  exit 1
+fi
 CONDA_BASE="$(conda info --base)"
 source "${CONDA_BASE}/etc/profile.d/conda.sh"
 
@@ -44,6 +51,37 @@ echo "Installing local ViTPose/MMPose repository..."
 cd "${REPO_ROOT}"
 python -m pip install -v -e .
 python -m pip install timm==0.4.9 einops==0.8.1
+
+echo
+echo "Registering vendored third-party packages..."
+
+python - <<'PY'
+import site
+from pathlib import Path
+
+repo_root = Path.cwd()
+site_packages = Path(site.getsitepackages()[0])
+pth_file = site_packages / "thesis_third_party.pth"
+
+third_party_paths = [
+    repo_root / "third_party" / "dinov2",
+    repo_root / "third_party" / "dinov3",
+]
+
+existing = [str(p.resolve()) for p in third_party_paths if p.exists()]
+
+if not existing:
+    raise RuntimeError(
+        "No vendored third-party packages found. Expected one or both of: "
+        "third_party/dinov2, third_party/dinov3"
+    )
+
+pth_file.write_text("\n".join(existing) + "\n")
+
+print(f"Wrote {pth_file}")
+for path in existing:
+    print(f"Added to Python path: {path}")
+PY
 
 echo
 echo "Checking package consistency..."
