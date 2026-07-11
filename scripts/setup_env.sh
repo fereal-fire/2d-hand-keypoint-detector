@@ -50,7 +50,7 @@ echo "Installing local ViTPose/MMPose repository..."
 
 cd "${REPO_ROOT}"
 python -m pip install -v -e .
-python -m pip install timm==0.4.9 einops==0.8.1
+python -m pip install timm==0.4.9 einops==0.8.1 orjson==3.10.15 tqdm==4.68.4
 
 echo
 echo "Registering vendored third-party packages..."
