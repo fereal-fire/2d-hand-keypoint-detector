@@ -1,51 +1,22 @@
 # 2D Hand Keypoint Estimation — MAE vs DINOv3 backbones
 
 Reproduction package for the thesis experiment analyzing the performance of 2d keypoint 
-detectors against the COCO wholebody hand dataset. Adds 2d keypoint data from HaMeR and 
+detectors against the COCO wholebody hand dataset. Adds 2d keypoint data from [HaMeR](https://github.com/geopavlakos/hamer) and 
 synthmocap, and also compares the performance of DINOv3 and MAE backbone for this task.
 
-## Repo layout
+This repository was built using the repository from [ViTPose](https://github.com/ViTAE-Transformer/ViTPose/blob/main/mmpose/datasets/datasets/hand/hand_coco_wholebody_dataset.py),
+using backbones from MAE, [DINOv2](https://github.com/facebookresearch/dinov2), and [DINOv3](https://github.com/facebookresearch/dinov3).The instructions below will build the environment and fetch the data. Proceed after cloning repository into your machine.
 
-| Path | Contents |
-|---|---|
-| `configs/` | MMPose training configs (MAE + DINOv3) |
-| `mmpose/models/backbones/` | Custom `DINOv2`/`DINOv3` backbones (part of the MMPose fork) |
-| `scripts/` | Data fetch/extract/convert, HaMeR-PCK scoring, visualization |
-| `jobs/` | `train.sh` / `train.sbatch` (SLURM) / `eval.sh` launchers |
-| `environment/` | `environment.yml` + pinned requirements |
-| `results/` | Results table (`hint_eval_results.csv`) |
-| `data/` | Not in git — created during setup (layout below) |
-| `work_dirs/` | Not in git — MMPose training outputs |
+## 1. Environment Setup
+A setup script has been prepared to ensure reproducibility. Doing this setup requires conda be installed on the machine.
 
-## 1. 
-
+To set up the environment:
 ```bash
 bash scripts/setup_env.sh        # creates conda env "2dKeypointHand" and verifies imports
 conda activate 2dKeypointHand
 ```
-
-The script: creates the env from `environment/environment.yml`, installs the
-mmcv-full 1.3.9 cu111 wheel, `pip install -e .` (this fork), then
-`timm==0.4.9 einops orjson`, and registers `third_party/dinov2` on the
-Python path via a `.pth` file in site-packages (the `DINOv2` backbone imports
-`dinov2.models`; do **not** pip-install dinov2's own requirements — they pin
-torch 2.0).
-
-Requires: conda, `libGL.so.1` (`apt install libgl1 libglib2.0-0`), a CUDA 11.x
-GPU for training (the setup check warns but passes on CPU-only nodes).
-
-**TODO(alex):** commit `pip freeze > environment/requirements-exact.txt` from
-the VM + record Python/CUDA/driver versions here.
-
-### HaMeR for scoring (evaluation only)
-
-`scripts/eval_vitpose_hint.py` imports `hamer.utils.pose_utils.EvaluatorPCK`
-so reported PCK is computed by HaMeR's own code, not a reimplementation:
-
-```bash
-git clone https://github.com/geopavlakos/hamer.git ~/hamer
-export PYTHONPATH=~/hamer:$PYTHONPATH    # no need for hamer's full install
-```
+The script creates the env `2dKeypointHand` from `environment.yml`, adds third party packages (dinov2 and dinov3) to path,
+and proceed through ViTPose's setup.
 
 ## 2. Data
 
@@ -55,53 +26,49 @@ Expected layout under `data/` after the steps below:
 data/
 ├── hamer/                          # HaMeR training data (freihand-train/, h2o3d-train/, ...)
 │   └── <dataset>/annotations/coco_annotations.json   # produced by converter
-├── synth_hand/                     # SynthMoCap SynthHand
+├── SynthMoCap/synth_hand/                     # SynthMoCap SynthHand
 │   └── annotations/coco_synthmocap_annotation.json
 ├── coco/                           # COCO images + WholeBody hand annotations
-│   ├── train2017/  val2017/
-│   └── annotations/coco_wholebody_{train,val}_v1.0.json
-├── HInt_annotation_partial/        # eval images (NewDays, EPIC-Kitchens VISOR)
-├── hamer_evaluation_data/          # HInt eval GT npz files
-└── annotations/                    # HInt eval COCO JSONs (from converter)
+    ├── train2017/  val2017/
+    └── annotations/coco_wholebody_{train,val}_v1.0.json
 ```
 
-### 2a. HaMeR training data (~300GB raw; needs ~2x in free disk)
+`REPO/data` is the expected location for this data for training, but you can easily place the data in the follow instructions in another directory if desired.
+If this is done, it is simplest to keep this other directory in the same format, and symlink REPO/data with your other directory. For each extraction script below, you may call it using
+`DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`.
+
+### 2a. HaMeR training data (~300 GB)
+`fetch_hamer_data.sh` has been adapted from `fetch_training_data.sh` from the HaMeR repository.
 
 ```bash
 bash scripts/fetch_hamer_data.sh      # gdown from Google Drive; Dropbox URLs in-script as fallback
 bash scripts/extract_hamer_data.sh    # outer .tar.gz then nested dataset tar shards
 WORKERS=$(nproc) bash scripts/convert_all_annotations.sh
 ```
-
-Gotchas: Google Drive quota errors are common — verify each archive with
-`gzip -t` (the fetch script does this) and fall back to the Dropbox links;
-conversion is disk-I/O bound, more workers won't help much on HDD.
-No `--reorder` is needed for HaMeR (keypoints are already in COCO hand order).
+Note that you may run `REMOVE=1 bash scrpts/...` in order to delete any tars after they have been deleted or extracted, if you are concerned about running out of memory.
 
 ### 2b. SynthMoCap (SynthHand, ~7GB)
 
 Downloader needs its own Python 3.10 env (separate from the training env) and
-**your own logins for https://amass.is.tue.mpg.de/ and https://mano.is.tue.mpg.de/**
-(pose data is spliced in at download time, not redistributed). Also needs
-system `wget` with TLSv1.2.
+**your own logins for https://amass.is.tue.mpg.de/ and https://mano.is.tue.mpg.de/**. Also needs
+system `wget`. You may find additional instructions at the [SynthMoCap Repository](https://github.com/microsoft/SynthMoCap.git).
 
 ```bash
-conda create -n synthmocap python=3.10 pip -y && conda activate synthmocap
+conda create -n synthmocap python=3.10 pip -y && conda activate synthmocap # Not used after data extraction so does not need to be done in <REPO>
 git clone https://github.com/microsoft/SynthMoCap.git && cd SynthMoCap
 pip install -r requirements.txt
 python download_data.py --dataset hand --output-dir <REPO>/data/   # -> data/synth_hand/
+cd <REPO>
 ```
 
 Convert (back in the training env). SynthMoCap stores landmarks in MANO+tips
-order; the `--reorder` mapping below converts to COCO hand order and **must
-match training** — this is the only dataset that needs reordering:
+order; the `--reorder` mapping below converts to COCO hand order. This is the only dataset that needs reordering:
 
 ```bash
 conda activate 2dKeypointHand
 python scripts/convert_synthmocap.py \
     --input-dir data/synth_hand \
     --reorder "0,13,14,15,20,1,2,3,16,4,5,6,17,10,11,12,19,7,8,9,18" \
-    --hand-side left \
     --workers 8
 ```
 
@@ -114,53 +81,23 @@ instantly as crossed fingers.)
 ### 2c. COCO-WholeBody (hand subset)
 
 ```bash
-bash scripts/fetch_coco.sh                      # val2017 + train2017 + WholeBody JSONs
-WITH_TRAIN_IMAGES=0 bash scripts/fetch_coco.sh  # eval-only variant, skips the 18GB train zip
+bash scripts/fetch_coco.sh                      # val2017, train2017, and annotations
 ```
 
-Images come straight from images.cocodataset.org (use `aria2c -x16` on the
-same URLs if wget is slow); the WholeBody hand-annotation JSONs come from the
-Google Drive links in https://github.com/jin-s13/COCO-WholeBody (the script
-knows the file IDs and detects Drive-quota HTML masquerading as JSON).
+These images are downloaded using the URLS [here](https://cocodataset.org/#download), and links for annotations were found [here](https://github.com/jin-s13/COCO-WholeBody).
 
-### 2d. HInt evaluation data
+## Pretrained Backbones
 
-```bash
-wget https://fouheylab.eecs.umich.edu/~dandans/projects/hamer/HInt_annotation_partial.zip
-unzip HInt_annotation_partial.zip -d data/
-```
-
-Ego4D frames are excluded by license — see https://github.com/ddshan/hint.
-The `hamer_evaluation_data/` npz files come with HaMeR's evaluation release
-(https://github.com/geopavlakos/hamer).
-
-Convert an eval npz to a COCO JSON for the test dataloader (once per
-name/split):
-
-```bash
-python scripts/convert_hint_npz_to_coco.py \
-    --npz data/hamer_evaluation_data/TEST_newdays_img_all.npz \
-    --img-dir data/HInt_annotation_partial/TEST_newdays_img/ \
-    --output-json data/annotations/hint_newdays_all.json
-```
-
-## 3. Pretrained backbones
-
-- **MAE ViT** — **TODO(alex): exact checkpoint + URL (or config auto-download).**
-- **DINOv3** — ViT-B/16 (embed_dim 768, depth 12, 256×256 input; see
-  `configs/`). Request access and download from
-  https://github.com/facebookresearch/dinov3.
-  **TODO(alex): document the weight-conversion step** (configs set
-  `pretrained=None`; the converted checkpoint is loaded via
-  <mechanism + exact command here>).
 
 ## 4. Train
 
-Run from the repo root (configs use the relative `data_root = 'data/...'`):
+ViTpose's repository can be consulted for more information on utilizing their pipeline. Our config for our models exist in 
+`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`. We can run using
 
 ```bash
 # single GPU node:
-./jobs/train.sh configs/<mae_config>.py
+bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/<Model> <NUM GPUs> --cfg-options model.pretrained=<Pretrained PATH> --seed 0
+
 ./jobs/train.sh configs/<dinov3_config>.py
 
 # or SLURM:
