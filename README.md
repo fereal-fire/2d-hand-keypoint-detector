@@ -86,75 +86,22 @@ bash scripts/fetch_coco.sh                      # val2017, train2017, and annota
 
 These images are downloaded using the URLS [here](https://cocodataset.org/#download), and links for annotations were found [here](https://github.com/jin-s13/COCO-WholeBody).
 
-## Pretrained Backbones
+## 3. Pretrained Backbones
+These will go into the `<REPO>/pretrained/` directory. These form one of the axes on which the experiments in this repository are done.
 
+### 3a. MAE Backbone
+This is the same backbone that ViTPose was trained with. Download links are found at the [MAE Repository](https://github.com/facebookresearch/mae), for example:
+```bash
+wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth -P pretrained/
+wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_large.pth -P pretrained/
+wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth -P pretrained/
+```
+
+### 3b. DINOv3 Backbone
+Acquiring this backbone requires going through links on Meta's [DINOv3 repository](https://github.com/facebookresearch/dinov3). You must request access by clicking 
+into one of the models, and you will be given download links in a follow-up email
 
 ## 4. Train
 
 ViTpose's repository can be consulted for more information on utilizing their pipeline. Our config for our models exist in 
-`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`. We can run using
-
-```bash
-# single GPU node:
-bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/<Model> <NUM GPUs> --cfg-options model.pretrained=<Pretrained PATH> --seed 0
-
-./jobs/train.sh configs/<dinov3_config>.py
-
-# or SLURM:
-sbatch jobs/train.sbatch configs/<dinov3_config>.py
-```
-
-Checkpoints land in `work_dirs/<config-name>/`. **TODO(alex): confirm
-training schedule and which datasets each thesis run trained on** (the
-configs are ground truth). To test hypothesis (a), also try the DINOv3
-config with a larger batch / more data.
-
-## 5. Evaluate on HInt (HaMeR PCK)
-
-One command per dataset/split (name = `newdays|epick|ego4d`,
-split = `all|vis|occ`):
-
-```bash
-./jobs/eval.sh configs/<dinov3_config>.py \
-    work_dirs/<dinov3_config>/epoch_30.pth newdays all
-```
-
-This runs MMPose inference (`tools/test.py --out preds.pkl`, predictions in
-original image pixels) and scores the pkl with HaMeR's `EvaluatorPCK`,
-printing PCK@0.05 / 0.10 / 0.15. Record numbers in
-`results/hint_eval_results.csv`.
-
-Notes baked into the metric (full derivation in the script docstrings):
-a joint counts only if GT confidence > 0.5 (this is what distinguishes the
-`all`/`vis`/`occ` npz files); the PCK normalization scale per sample is
-`npz['scale'].max()` in pixels; handedness comes from `npz['right']` (GT
-annotation — the model never predicts it).
-
-## 6. Visualize (optional)
-
-`scripts/run_visualizations.sh` renders side-by-side [GT | prediction] panels
-(plus in-depth and error/confidence variants) for every pkl under
-`model_predictions/<name>_<split>/`, into `model_visualizations/`:
-
-```bash
-# run from a directory containing model_predictions/, hamer_evaluation_data/
-# and HInt_annotation_partial/ (paths are relative to the CWD):
-./scripts/run_visualizations.sh          # DRY_RUN=1 to preview commands
-```
-
-## Smoke test (recommended before a full run)
-
-Every stage has a cheap path: SynthMoCap `--single_chunk` (300MB),
-`WITH_TRAIN_IMAGES=0` for COCO, converter `--size 500` (HaMeR) /
-`--glob 'metadata_00000*'` (SynthMoCap), and a 1–2 epoch training run
-(`total_epochs` override) just to prove the pipeline executes end to end.
-
-## Expected results
-
-**TODO(alex):** fill `results/hint_eval_results.csv` with the thesis MAE and
-DINOv3 numbers (after the verification test run) so cluster runs can be
-checked against them.
-
-## Contact
-
-Alex Wilcox — alexwilcox06@gmail.com
+`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`.
