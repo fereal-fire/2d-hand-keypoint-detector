@@ -16,6 +16,9 @@ cd "${REPO_ROOT}"
 if ! command -v conda >/dev/null 2>&1; then
   echo "ERROR: conda is not available on PATH."
   echo "Install Miniconda or Anaconda first, then rerun this script."
+  echo "Example installation instructions for Miniconda:"
+  echo "  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+  echo "  bash Miniconda3-latest-Linux-x86_64.sh"
   exit 1
 fi
 
@@ -118,6 +121,16 @@ import einops
 print("einops:", einops.__version__)
 
 from mmpose.models import build_posenet   # exercises model registry
+PY
+
+echo
+echo "Core packages imported successfully."
+
+echo 
+echo "Checking for valid CUDA installation..."
+
+python - <<'PY'
+import torch
 x = (torch.randn(8, device="cuda") * 2).sum()  # forces a real CUDA kernel
 print("CUDA compute OK:", float(x) == float(x))
 PY
