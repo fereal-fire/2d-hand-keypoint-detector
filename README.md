@@ -1,299 +1,239 @@
-<h1 align="left">ViTPose / ViTPose++: Vision Transformer for Generic Body Pose Estimation</h1> 
-<p align="center">
-<a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/fbb10d319d44f8c3b4720873e4177c65-Abstract-Conference.html">
-  <img src="https://img.shields.io/badge/NeurIPS_2022-ViTPose-8E44AD" alt="NeurIPS 2022">
-</a>
-<a href="https://ieeexplore.ieee.org/abstract/document/10308645">
-  <img src="https://img.shields.io/badge/TPAMI_2023-ViTPose%2B%2B-00629B" alt="TPAMI 2023">
-</a>
+# 2D Hand Keypoint Estimation — MAE vs DINOv3 backbones
 
-</p>
-<p align="center">
-  <a href="#Results">Results</a> |
-  <a href="#Updates">Updates</a> |
-  <a href="#Usage">Usage</a> |
-  <a href='#Todo'>Todo</a> |
-  <a href="#Acknowledge">Acknowledge</a>
-</p>
+Reproduction package for the thesis experiment comparing ViTPose-style 2D hand
+keypoint estimation (21-joint COCO-WholeBody hand layout) with an
+**MAE-pretrained ViT backbone** vs a **DINOv3 backbone**, trained with a
+forked MMPose 0.24 and evaluated on the **HInt** benchmark using **HaMeR's own
+PCK metric**.
 
-<p align="center">
-<a href="https://giphy.com/gifs/UfPQB1qKir7Vqem6sL/fullscreen"><img src="https://media.giphy.com/media/ZewXwZuixYKS2lZmNL/giphy.gif"></a>   <a href="https://giphy.com/gifs/DCvf1DrWZgbwPa8bWZ/fullscreen"><img src="https://media.giphy.com/media/2AEeuicbIjwqp2mbug/giphy.gif"></a>
-</p>
-<p align="center">
-<a href="https://giphy.com/gifs/r3GaZz7H1H6zpuIvPI/fullscreen"><img src="https://media.giphy.com/media/13oe6zo6b2B7CdsOac/giphy.gif"></a>    <a href="https://giphy.com/gifs/FjzrGJxsOzZAXaW7Vi/fullscreen"><img src="https://media.giphy.com/media/4JLERHxOEgH0tt5DZO/giphy.gif"></a>
-</p>
+Current finding to test: on the same training split, the MAE backbone beats
+the DINOv3 backbone. Hypotheses: (a) DINOv3 is larger and overfits at this
+data scale — expected to win with more data / bigger batch; (b) environment
+changes required to run DINOv3 under a lower Python version explain part of
+the gap. Reproducing the training run on your cluster tests both.
 
-This branch contains the pytorch implementation of <a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/fbb10d319d44f8c3b4720873e4177c65-Abstract-Conference.html">ViTPose: Simple Vision Transformer Baselines for Human Pose Estimation</a> and <a href="https://ieeexplore.ieee.org/abstract/document/10308645">ViTPose++: Vision Transformer for Generic Body Pose Estimation</a>. It obtains 81.1 AP on MS COCO Keypoint test-dev set.
+> ⚠️ Sections marked **TODO(alex)** are placeholders still to be filled in
+> before this is fully self-contained.
 
-<img src="figures/Throughput.png" class="left" width='80%'>
+## Repo layout
 
-## Web Demo
+| Path | Contents |
+|---|---|
+| `configs/` | MMPose training configs (MAE + DINOv3) |
+| `mmpose/models/backbones/` | Custom `DINOv2`/`DINOv3` backbones (part of the MMPose fork) |
+| `scripts/` | Data fetch/extract/convert, HaMeR-PCK scoring, visualization |
+| `jobs/` | `train.sh` / `train.sbatch` (SLURM) / `eval.sh` launchers |
+| `environment/` | `environment.yml` + pinned requirements |
+| `results/` | Results table (`hint_eval_results.csv`) |
+| `data/` | Not in git — created during setup (layout below) |
+| `work_dirs/` | Not in git — MMPose training outputs |
 
-- Integrated into [Huggingface Spaces 🤗](https://huggingface.co/spaces) using [Gradio](https://github.com/gradio-app/gradio). Try out the Web Demo for video: [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/hysts/ViTPose_video) and images [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/Gradio-Blocks/ViTPose)
+## 1. Environment
 
-## MAE Pre-trained model
-
-- The small size MAE pre-trained model can be found in [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccZeiFjh4DJ7gjYyg?e=iTMdMq). 
-- The base, large, and huge pre-trained models using MAE can be found in the [MAE official repo](https://github.com/facebookresearch/mae).
-
-## Results from this repo on MS COCO val set (single-task training)
-
-Using detection results from a detector that obtains 56 mAP on person. The configs here are for both training and test.
-
-> With classic decoder
-
-| Model | Pretrain | Resolution | AP | AR | config | log | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-S | MAE | 256x192 | 73.8 | 79.2 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_coco_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcchdNXBAh7ClS14pA?e=dKXmJ6) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccifT1XlGRatxg3vw?e=9wz7BY) |
-| ViTPose-B | MAE | 256x192 | 75.8 | 81.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py) | [log](logs/vitpose-b.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSMjp1_NrV3VRSmK?e=Q1uZKs) |
-| ViTPose-L | MAE | 256x192 | 78.3 | 83.5 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_large_coco_256x192.py) | [log](logs/vitpose-l.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSd9k_kuktPtiP4F?e=K7DGYT) |
-| ViTPose-H | MAE | 256x192 | 79.1 | 84.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py) | [log](logs/vitpose-h.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgShLMI-kkmvNfF_h?e=dEhGHe) |
-
-> With simple decoder
-
-| Model | Pretrain | Resolution | AP | AR | config | log | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-S | MAE | 256x192 | 73.5 | 78.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_small_simple_coco_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccfkqELJqE67kpRtw?e=InSjJP) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccgb_50jIgiYkHvdw?e=D7RbH2) |
-| ViTPose-B | MAE | 256x192 | 75.5 | 80.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_simple_coco_256x192.py) | [log](logs/vitpose-b-simple.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSRPKrD5PmDRiv0R?e=jifvOe) |
-| ViTPose-L | MAE | 256x192 | 78.2 | 83.4 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_large_simple_coco_256x192.py) | [log](logs/vitpose-l-simple.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSVS6DP2LmKwZ3sm?e=MmCvDT) |
-| ViTPose-H | MAE | 256x192 | 78.9 | 84.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_simple_coco_256x192.py) | [log](logs/vitpose-h-simple.log.json) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSbHyN2mjh2n2LyG?e=y0FgMK) |
-
-
-## Results with multi-task training
-
-**Note** \* There may exist duplicate images in the crowdpose training set and the validation images in other datasets, as discussed in [issue #24](https://github.com/ViTAE-Transformer/ViTPose/issues/24). Please be careful when using these models for evaluation. We provide the results without the crowpose dataset for reference.
-
-### Human datasets (MS COCO, AIC, MPII, CrowdPose)
-> Results on MS COCO val set
-
-Using detection results from a detector that obtains 56 mAP on person. Note the configs here are only for evaluation.
-
-| Model | Dataset | Resolution | AP | AR | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-B | COCO+AIC+MPII | 256x192 | 77.1 | 82.2 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py)  | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcccwaTZ8xCFFM3Sjg?e=chmiK5) |
-| ViTPose-L | COCO+AIC+MPII | 256x192 | 78.7 | 83.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_large_coco_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccdOLQqSo6E87GfMw?e=TEurgW) |
-| ViTPose-H | COCO+AIC+MPII | 256x192 | 79.5 | 84.5 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccmHofkmfJDQDukVw?e=gRK224) |
-| ViTPose-G | COCO+AIC+MPII | 576x432 | 81.0 | 85.6 | | |
-| ViTPose-B* | COCO+AIC+MPII+CrowdPose | 256x192 | 77.5 | 82.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_base_coco_256x192.py)  |[Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSrlMB093JzJtqq-?e=Jr5S3R) |
-| ViTPose-L* | COCO+AIC+MPII+CrowdPose | 256x192 | 79.1 | 84.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_large_coco_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTBm3dCVmBUbHYT6?e=fHUrTq) |
-| ViTPose-H* | COCO+AIC+MPII+CrowdPose | 256x192 | 79.8 | 84.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose_huge_coco_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgS5rLeRAJiWobCdh?e=41GsDd) |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 75.8 | 82.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose++_small_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 77.0 | 82.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose++_base_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 78.6 | 84.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose++_large_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 79.4 | 84.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/coco/ViTPose++_huge_coco+aic+mpii+ap10k+apt36k+wholebody_256x192_udp.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-
-> Results on OCHuman test set
-
-Using groundtruth bounding boxes. Note the configs here are only for evaluation.
-
-| Model | Dataset | Resolution | AP | AR | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-B | COCO+AIC+MPII | 256x192 | 88.0 | 89.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_base_ochuman_256x192.py)  | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcccwaTZ8xCFFM3Sjg?e=chmiK5) |
-| ViTPose-L | COCO+AIC+MPII | 256x192 | 90.9 | 92.2 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_large_ochuman_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccdOLQqSo6E87GfMw?e=TEurgW) |
-| ViTPose-H | COCO+AIC+MPII | 256x192 | 90.9 | 92.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_huge_ochuman_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccmHofkmfJDQDukVw?e=gRK224) |
-| ViTPose-G | COCO+AIC+MPII | 576x432 | 93.3 | 94.3 | | |
-| ViTPose-B* | COCO+AIC+MPII+CrowdPose | 256x192 | 88.2 | 90.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_base_ochuman_256x192.py)  |[Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSrlMB093JzJtqq-?e=Jr5S3R) |
-| ViTPose-L* | COCO+AIC+MPII+CrowdPose | 256x192 | 91.5 | 92.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_large_ochuman_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTBm3dCVmBUbHYT6?e=fHUrTq) |
-| ViTPose-H* | COCO+AIC+MPII+CrowdPose | 256x192 | 91.6 | 92.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_huge_ochuman_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgS5rLeRAJiWobCdh?e=41GsDd) |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 78.4 | 80.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_small_ochuman_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 82.6 | 84.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_base_ochuman_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 85.7 | 87.5 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_large_ochuman_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 85.7 | 87.4 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_huge_ochuman_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-> Results on MPII val set
-
-Using groundtruth bounding boxes. Note the configs here are only for evaluation. The metric is PCKh.
-
-| Model | Dataset | Resolution | Mean | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-B | COCO+AIC+MPII | 256x192 | 93.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_base_mpii_256x192.py)  | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcccwaTZ8xCFFM3Sjg?e=chmiK5) |
-| ViTPose-L | COCO+AIC+MPII | 256x192 | 94.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_large_mpii_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccdOLQqSo6E87GfMw?e=TEurgW) |
-| ViTPose-H | COCO+AIC+MPII | 256x192 | 94.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_huge_mpii_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccmHofkmfJDQDukVw?e=gRK224) |
-| ViTPose-G | COCO+AIC+MPII | 576x432 | 94.3 | | |
-| ViTPose-B* | COCO+AIC+MPII+CrowdPose | 256x192 | 93.4 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_base_mpii_256x192.py)  |[Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSy_OSEm906wd2LB?e=GOSg14) |
-| ViTPose-L* | COCO+AIC+MPII+CrowdPose | 256x192 | 93.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_large_mpii_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTM32I6Kpjr-esl6?e=qvh0Yl) |
-| ViTPose-H* | COCO+AIC+MPII+CrowdPose | 256x192 | 94.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_huge_mpii_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTT90XEQBKy-scIH?e=D2WhTS) |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 92.7 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_small_mpii_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 92.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_base_mpii_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 94.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_large_mpii_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 94.2 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/mpii/ViTPose_huge_mpii_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-
-> Results on AI Challenger test set
-
-Using groundtruth bounding boxes. Note the configs here are only for evaluation.
-
-| Model | Dataset | Resolution | AP | AR | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-B | COCO+AIC+MPII | 256x192 | 32.0 | 36.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_base_aic_256x192.py)  | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcccwaTZ8xCFFM3Sjg?e=chmiK5) |
-| ViTPose-L | COCO+AIC+MPII | 256x192 | 34.5 | 39.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_large_aic_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccdOLQqSo6E87GfMw?e=TEurgW) |
-| ViTPose-H | COCO+AIC+MPII | 256x192 | 35.4 | 39.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_huge_aic_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccmHofkmfJDQDukVw?e=gRK224) |
-| ViTPose-G | COCO+AIC+MPII | 576x432 | 43.2 | 47.1 | | |
-| ViTPose-B* | COCO+AIC+MPII+CrowdPose | 256x192 | 31.9 | 36.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_base_aic_256x192.py)  |[Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgSlvdVaXTC92SHYH?e=j7iqcp) |
-| ViTPose-L* | COCO+AIC+MPII+CrowdPose | 256x192 | 34.6 | 39.0 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_large_aic_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTF06FX3FSAm0MOH?e=rYts9F) |
-| ViTPose-H* | COCO+AIC+MPII+CrowdPose | 256x192 | 35.3 | 39.8 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/aic/ViTPose_huge_aic_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgS1MRmb2mcow_K04?e=q9jPab) |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 29.7 | 34.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_small_ochuman_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 31.8 | 36.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_base_ochuman_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 34.3 | 38.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_large_ochuman_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 34.8 | 39.1 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/ochuman/ViTPose_huge_ochuman_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-> Results on CrowdPose test set
-
-Using YOLOv3 human detector. Note the configs here are only for evaluation.
-
-| Model | Dataset | Resolution | AP | AP(H) | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: | :----: |
-| ViTPose-B* | COCO+AIC+MPII+CrowdPose | 256x192 | 74.7 | 63.3 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/crowdpose/ViTPose_base_crowdpose_256x192.py)  |[Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgStrrCb91cPlaxJx?e=6Xobo6) |
-| ViTPose-L* | COCO+AIC+MPII+CrowdPose | 256x192 | 76.6 | 65.9 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/crowdpose/ViTPose_large_crowdpose_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgTK3dug-r7c6GFyu?e=1ZBpEG) |
-| ViTPose-H* | COCO+AIC+MPII+CrowdPose | 256x192 | 76.3 | 65.6 | [config](configs/body/2d_kpt_sview_rgb_img/topdown_heatmap/crowdpose/ViTPose_huge_crowdpose_256x192.py) | [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgS-oAvEV4MTD--Xr?e=EeW2Fu) |
-
-### Animal datasets (AP10K, APT36K)
-
-> Results on AP-10K test set
-
-| Model | Dataset | Resolution | AP | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 71.4 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/ap10k/ViTPose_small_ap10k_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 74.5 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/ap10k/ViTPose_base_ap10k_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 80.4 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/ap10k/ViTPose_large_ap10k_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 82.4 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/ap10k/ViTPose_huge_ap10k_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-> Results on APT-36K val set
-
-| Model | Dataset | Resolution | AP | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 74.2 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/apt36k/ViTPose_small_apt36k_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 75.9 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/apt36k/ViTPose_base_apt36k_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 80.8 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/apt36k/ViTPose_large_apt36k_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 82.3 | [config](configs/animal/2d_kpt_sview_rgb_img/topdown_heatmap/apt36k/ViTPose_huge_apt36k_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-### WholeBody dataset
-
-| Model | Dataset | Resolution | AP | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: |
-| **ViTPose++-S** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 54.4 | [config](configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_small_wholebody_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccqO1JBHtBjNaeCbQ?e=ZN5NSz) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccrwORr61gT9E4n8g?e=kz9sz5) |
-| **ViTPose++-B** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 57.4 | [config](cconfigs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_base_wholebody_256x192.py)  | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccjj9lgPTlkGT1HTw?e=OlS5zv) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgcckRZk1bIAuRa_E1w?e=ylDB2G) |
-| **ViTPose++-L** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 60.6 | [config](configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_large_wholebody_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgccp7HJf4QMeQQpeyA?e=JagPNt) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccs1SNFUGSTsmRJ8w?e=a9zKwZ) |
-| **ViTPose++-H** | COCO+AIC+MPII+AP10K+APT36K+WholeBody | 256x192 | 61.2 | [config](configs/wholebody/2d_kpt_sview_rgb_img/topdown_heatmap/coco-wholebody/ViTPose_huge_wholebody_256x192.py) | [log](https://1drv.ms/u/s!AimBgYV7JjTlgcclxZOlwRJdqpIIjA?e=nFQgVC) \| [Onedrive](https://1drv.ms/u/s!AimBgYV7JjTlgccoXv8rCUgVe7oD9Q?e=ZBw6gR) |
-
-### Transfer results on the hand dataset (InterHand2.6M)
-
-| Model | Dataset | Resolution | AUC | config | weight |
-| :----: | :----: | :----: | :----: | :----: | :----: |
-| **ViTPose++-S** | COCO+AIC+MPII+WholeBody | 256x192 | 86.5 | [config](configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/interhand2d/ViTPose_small_interhand2d_all_256x192.py)  | Coming Soon |
-| **ViTPose++-B** | COCO+AIC+MPII+WholeBody | 256x192 | 87.0 | [config](configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/interhand2d/ViTPose_base_interhand2d_all_256x192.py)  | Coming Soon |
-| **ViTPose++-L** | COCO+AIC+MPII+WholeBody | 256x192 | 87.5 | [config](configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/interhand2d/ViTPose_large_interhand2d_all_256x192.py) | Coming Soon |
-| **ViTPose++-H** | COCO+AIC+MPII+WholeBody | 256x192 | 87.6 | [config](configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/interhand2d/ViTPose_huge_interhand2d_all_256x192.py) | Coming Soon |
-
-## Updates
-
-> [2023-01-10] Update ViTPose++! It uses MoE strategies to jointly deal with human, animal, and wholebody pose estimation tasks.
-
-> [2022-05-24] Upload the single-task training code, single-task pre-trained models, and multi-task pretrained models.
-
-> [2022-05-06] Upload the logs for the base, large, and huge models!
-
-> [2022-04-27] Our ViTPose with ViTAE-G obtains 81.1 AP on COCO test-dev set! 
-
-> Applications of ViTAE Transformer include: [image classification](https://github.com/ViTAE-Transformer/ViTAE-Transformer/tree/main/Image-Classification) | [object detection](https://github.com/ViTAE-Transformer/ViTAE-Transformer/tree/main/Object-Detection) | [semantic segmentation](https://github.com/ViTAE-Transformer/ViTAE-Transformer/tree/main/Semantic-Segmentation) | [animal pose segmentation](https://github.com/ViTAE-Transformer/ViTAE-Transformer/tree/main/Animal-Pose-Estimation) | [remote sensing](https://github.com/ViTAE-Transformer/ViTAE-Transformer-Remote-Sensing) | [matting](https://github.com/ViTAE-Transformer/ViTAE-Transformer-Matting) | [VSA](https://github.com/ViTAE-Transformer/ViTAE-VSA) | [ViTDet](https://github.com/ViTAE-Transformer/ViTDet)
-
-## Usage
-
-We use PyTorch 1.9.0 or NGC docker 21.06, and mmcv 1.3.9 for the experiments.
-```bash
-git clone https://github.com/open-mmlab/mmcv.git
-cd mmcv
-git checkout v1.3.9
-MMCV_WITH_OPS=1 pip install -e .
-cd ..
-git clone https://github.com/ViTAE-Transformer/ViTPose.git
-cd ViTPose
-pip install -v -e .
-```
-
-After install the two repos, install timm and einops, i.e.,
-```bash
-pip install timm==0.4.9 einops
-```
-
-After downloading the pretrained models, please conduct the experiments by running
+Non-negotiables (environment fidelity is itself hypothesis b — do not
+"upgrade" anything): **Python 3.8**, **torch 1.9.1+cu111**,
+**mmcv-full 1.3.9** (prebuilt cu111/torch1.9 wheel), **timm 0.4.9**,
+this repo's MMPose fork installed editable — *not* stock MMPose.
 
 ```bash
-# for single machine
-bash tools/dist_train.sh <Config PATH> <NUM GPUs> --cfg-options model.pretrained=<Pretrained PATH> --seed 0
-
-# for multiple machines
-python -m torch.distributed.launch --nnodes <Num Machines> --node_rank <Rank of Machine> --nproc_per_node <GPUs Per Machine> --master_addr <Master Addr> --master_port <Master Port> tools/train.py <Config PATH> --cfg-options model.pretrained=<Pretrained PATH> --launcher pytorch --seed 0
+bash scripts/setup_env.sh        # creates conda env "2dKeypointHand" and verifies imports
+conda activate 2dKeypointHand
 ```
 
-To test the pretrained models performance, please run 
+The script: creates the env from `environment/environment.yml`, installs the
+mmcv-full 1.3.9 cu111 wheel, `pip install -e .` (this fork), then
+`timm==0.4.9 einops orjson`, and registers `third_party/dinov2` on the
+Python path via a `.pth` file in site-packages (the `DINOv2` backbone imports
+`dinov2.models`; do **not** pip-install dinov2's own requirements — they pin
+torch 2.0).
+
+Requires: conda, `libGL.so.1` (`apt install libgl1 libglib2.0-0`), a CUDA 11.x
+GPU for training (the setup check warns but passes on CPU-only nodes).
+
+**TODO(alex):** commit `pip freeze > environment/requirements-exact.txt` from
+the VM + record Python/CUDA/driver versions here.
+
+### HaMeR for scoring (evaluation only)
+
+`scripts/eval_vitpose_hint.py` imports `hamer.utils.pose_utils.EvaluatorPCK`
+so reported PCK is computed by HaMeR's own code, not a reimplementation:
 
 ```bash
-bash tools/dist_test.sh <Config PATH> <Checkpoint PATH> <NUM GPUs>
+git clone https://github.com/geopavlakos/hamer.git ~/hamer
+export PYTHONPATH=~/hamer:$PYTHONPATH    # no need for hamer's full install
 ```
 
-For ViTPose++ pre-trained models, please first re-organize the pre-trained weights using
+## 2. Data
+
+Expected layout under `data/` after the steps below:
+
+```
+data/
+├── hamer/                          # HaMeR training data (freihand-train/, h2o3d-train/, ...)
+│   └── <dataset>/annotations/coco_annotations.json   # produced by converter
+├── synth_hand/                     # SynthMoCap SynthHand
+│   └── annotations/coco_synthmocap_annotation.json
+├── coco/                           # COCO images + WholeBody hand annotations
+│   ├── train2017/  val2017/
+│   └── annotations/coco_wholebody_{train,val}_v1.0.json
+├── HInt_annotation_partial/        # eval images (NewDays, EPIC-Kitchens VISOR)
+├── hamer_evaluation_data/          # HInt eval GT npz files
+└── annotations/                    # HInt eval COCO JSONs (from converter)
+```
+
+### 2a. HaMeR training data (~300GB raw; needs ~2x in free disk)
 
 ```bash
-python tools/model_split.py --source <Pretrained PATH>
+bash scripts/fetch_hamer_data.sh      # gdown from Google Drive; Dropbox URLs in-script as fallback
+bash scripts/extract_hamer_data.sh    # outer .tar.gz then nested dataset tar shards
+WORKERS=$(nproc) bash scripts/convert_all_annotations.sh
 ```
 
-## Todo
+Gotchas: Google Drive quota errors are common — verify each archive with
+`gzip -t` (the fetch script does this) and fall back to the Dropbox links;
+conversion is disk-I/O bound, more workers won't help much on HDD.
+No `--reorder` is needed for HaMeR (keypoints are already in COCO hand order).
 
-This repo current contains modifications including:
+### 2b. SynthMoCap (SynthHand, ~7GB)
 
-- [x] Upload configs and pretrained models
+Downloader needs its own Python 3.10 env (separate from the training env) and
+**your own logins for https://amass.is.tue.mpg.de/ and https://mano.is.tue.mpg.de/**
+(pose data is spliced in at download time, not redistributed). Also needs
+system `wget` with TLSv1.2.
 
-- [x] More models with SOTA results
-
-- [x] Upload multi-task training config
-
-## Acknowledge
-We acknowledge the excellent implementation from [mmpose](https://github.com/open-mmlab/mmdetection) and [MAE](https://github.com/facebookresearch/mae).
-
-## Citing ViTPose and ViTPose++
-
-For ViTPose
-
-```
-@inproceedings{
-  xu2022vitpose,
-  title={Vi{TP}ose: Simple Vision Transformer Baselines for Human Pose Estimation},
-  author={Yufei Xu and Jing Zhang and Qiming Zhang and Dacheng Tao},
-  booktitle={Advances in Neural Information Processing Systems},
-  year={2022},
-}
+```bash
+conda create -n synthmocap python=3.10 pip -y && conda activate synthmocap
+git clone https://github.com/microsoft/SynthMoCap.git && cd SynthMoCap
+pip install -r requirements.txt
+python download_data.py --dataset hand --output-dir <REPO>/data/   # -> data/synth_hand/
 ```
 
-For ViTPose++
+Convert (back in the training env). SynthMoCap stores landmarks in MANO+tips
+order; the `--reorder` mapping below converts to COCO hand order and **must
+match training** — this is the only dataset that needs reordering:
 
-```
-@article{xu2023ViTPose++,
-  title={ViTPose++: Vision Transformer Foundation Model for Generic Body Pose Estimation},
-  author={Xu, Yufei and Zhang, Jing and Zhang, Qiming and Tao, Dacheng},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2024},
-  volume={46},
-  pages={1212-1230},
-  doi={10.1109/TPAMI.2023.3330016}
-}
+```bash
+conda activate 2dKeypointHand
+python scripts/convert_synthmocap.py \
+    --input-dir data/synth_hand \
+    --reorder "0,13,14,15,20,1,2,3,16,4,5,6,17,10,11,12,19,7,8,9,18" \
+    --hand-side left \
+    --workers 8
 ```
 
-For ViTAE and ViTAEv2, please refer to:
-```
-@article{xu2021vitae,
-  title={Vitae: Vision transformer advanced by exploring intrinsic inductive bias},
-  author={Xu, Yufei and Zhang, Qiming and Zhang, Jing and Tao, Dacheng},
-  journal={Advances in Neural Information Processing Systems},
-  volume={34},
-  year={2021}
-}
+(Mapping derivation: SynthMoCap order is wrist; index/middle/pinky/ring/thumb
+3-joint chains; then 5 tips in the same finger order — from `LDMK_CONN` in
+SynthMoCap's `visualize_data.py`. Verify visually with
+`scripts/visualize_predictions.py` on a few samples: a wrong mapping shows up
+instantly as crossed fingers.)
 
-@article{zhang2022vitaev2,
-  title={ViTAEv2: Vision Transformer Advanced by Exploring Inductive Bias for Image Recognition and Beyond},
-  author={Zhang, Qiming and Xu, Yufei and Zhang, Jing and Tao, Dacheng},
-  journal={arXiv preprint arXiv:2202.10108},
-  year={2022}
-}
+### 2c. COCO-WholeBody (hand subset)
+
+```bash
+bash scripts/fetch_coco.sh                      # val2017 + train2017 + WholeBody JSONs
+WITH_TRAIN_IMAGES=0 bash scripts/fetch_coco.sh  # eval-only variant, skips the 18GB train zip
 ```
+
+Images come straight from images.cocodataset.org (use `aria2c -x16` on the
+same URLs if wget is slow); the WholeBody hand-annotation JSONs come from the
+Google Drive links in https://github.com/jin-s13/COCO-WholeBody (the script
+knows the file IDs and detects Drive-quota HTML masquerading as JSON).
+
+### 2d. HInt evaluation data
+
+```bash
+wget https://fouheylab.eecs.umich.edu/~dandans/projects/hamer/HInt_annotation_partial.zip
+unzip HInt_annotation_partial.zip -d data/
+```
+
+Ego4D frames are excluded by license — see https://github.com/ddshan/hint.
+The `hamer_evaluation_data/` npz files come with HaMeR's evaluation release
+(https://github.com/geopavlakos/hamer).
+
+Convert an eval npz to a COCO JSON for the test dataloader (once per
+name/split):
+
+```bash
+python scripts/convert_hint_npz_to_coco.py \
+    --npz data/hamer_evaluation_data/TEST_newdays_img_all.npz \
+    --img-dir data/HInt_annotation_partial/TEST_newdays_img/ \
+    --output-json data/annotations/hint_newdays_all.json
+```
+
+## 3. Pretrained backbones
+
+- **MAE ViT** — **TODO(alex): exact checkpoint + URL (or config auto-download).**
+- **DINOv3** — ViT-B/16 (embed_dim 768, depth 12, 256×256 input; see
+  `configs/`). Request access and download from
+  https://github.com/facebookresearch/dinov3.
+  **TODO(alex): document the weight-conversion step** (configs set
+  `pretrained=None`; the converted checkpoint is loaded via
+  <mechanism + exact command here>).
+
+## 4. Train
+
+Run from the repo root (configs use the relative `data_root = 'data/...'`):
+
+```bash
+# single GPU node:
+./jobs/train.sh configs/<mae_config>.py
+./jobs/train.sh configs/<dinov3_config>.py
+
+# or SLURM:
+sbatch jobs/train.sbatch configs/<dinov3_config>.py
+```
+
+Checkpoints land in `work_dirs/<config-name>/`. **TODO(alex): confirm
+training schedule and which datasets each thesis run trained on** (the
+configs are ground truth). To test hypothesis (a), also try the DINOv3
+config with a larger batch / more data.
+
+## 5. Evaluate on HInt (HaMeR PCK)
+
+One command per dataset/split (name = `newdays|epick|ego4d`,
+split = `all|vis|occ`):
+
+```bash
+./jobs/eval.sh configs/<dinov3_config>.py \
+    work_dirs/<dinov3_config>/epoch_30.pth newdays all
+```
+
+This runs MMPose inference (`tools/test.py --out preds.pkl`, predictions in
+original image pixels) and scores the pkl with HaMeR's `EvaluatorPCK`,
+printing PCK@0.05 / 0.10 / 0.15. Record numbers in
+`results/hint_eval_results.csv`.
+
+Notes baked into the metric (full derivation in the script docstrings):
+a joint counts only if GT confidence > 0.5 (this is what distinguishes the
+`all`/`vis`/`occ` npz files); the PCK normalization scale per sample is
+`npz['scale'].max()` in pixels; handedness comes from `npz['right']` (GT
+annotation — the model never predicts it).
+
+## 6. Visualize (optional)
+
+`scripts/run_visualizations.sh` renders side-by-side [GT | prediction] panels
+(plus in-depth and error/confidence variants) for every pkl under
+`model_predictions/<name>_<split>/`, into `model_visualizations/`:
+
+```bash
+# run from a directory containing model_predictions/, hamer_evaluation_data/
+# and HInt_annotation_partial/ (paths are relative to the CWD):
+./scripts/run_visualizations.sh          # DRY_RUN=1 to preview commands
+```
+
+## Smoke test (recommended before a full run)
+
+Every stage has a cheap path: SynthMoCap `--single_chunk` (300MB),
+`WITH_TRAIN_IMAGES=0` for COCO, converter `--size 500` (HaMeR) /
+`--glob 'metadata_00000*'` (SynthMoCap), and a 1–2 epoch training run
+(`total_epochs` override) just to prove the pipeline executes end to end.
+
+## Expected results
+
+**TODO(alex):** fill `results/hint_eval_results.csv` with the thesis MAE and
+DINOv3 numbers (after the verification test run) so cluster runs can be
+checked against them.
+
+## Contact
+
+Alex Wilcox — alexwilcox06@gmail.com
