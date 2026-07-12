@@ -1,19 +1,8 @@
 # 2D Hand Keypoint Estimation — MAE vs DINOv3 backbones
 
-Reproduction package for the thesis experiment comparing ViTPose-style 2D hand
-keypoint estimation (21-joint COCO-WholeBody hand layout) with an
-**MAE-pretrained ViT backbone** vs a **DINOv3 backbone**, trained with a
-forked MMPose 0.24 and evaluated on the **HInt** benchmark using **HaMeR's own
-PCK metric**.
-
-Current finding to test: on the same training split, the MAE backbone beats
-the DINOv3 backbone. Hypotheses: (a) DINOv3 is larger and overfits at this
-data scale — expected to win with more data / bigger batch; (b) environment
-changes required to run DINOv3 under a lower Python version explain part of
-the gap. Reproducing the training run on your cluster tests both.
-
-> ⚠️ Sections marked **TODO(alex)** are placeholders still to be filled in
-> before this is fully self-contained.
+Reproduction package for the thesis experiment analyzing the performance of 2d keypoint 
+detectors against the COCO wholebody hand dataset. Adds 2d keypoint data from HaMeR and 
+synthmocap, and also compares the performance of DINOv3 and MAE backbone for this task.
 
 ## Repo layout
 
@@ -28,12 +17,7 @@ the gap. Reproducing the training run on your cluster tests both.
 | `data/` | Not in git — created during setup (layout below) |
 | `work_dirs/` | Not in git — MMPose training outputs |
 
-## 1. Environment
-
-Non-negotiables (environment fidelity is itself hypothesis b — do not
-"upgrade" anything): **Python 3.8**, **torch 1.9.1+cu111**,
-**mmcv-full 1.3.9** (prebuilt cu111/torch1.9 wheel), **timm 0.4.9**,
-this repo's MMPose fork installed editable — *not* stock MMPose.
+## 1. 
 
 ```bash
 bash scripts/setup_env.sh        # creates conda env "2dKeypointHand" and verifies imports
