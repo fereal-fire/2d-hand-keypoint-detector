@@ -1,14 +1,13 @@
 # 2D Hand Keypoint Estimation — MAE vs DINOv3 backbones
 
-Reproduction package for the thesis experiment analyzing the performance of 2d keypoint 
-detectors against the COCO wholebody hand dataset. Adds 2d keypoint data from [HaMeR](https://github.com/geopavlakos/hamer) and 
-synthmocap, and also compares the performance of DINOv3 and MAE backbone for this task.
+Reproduction package for thesis experiment analyzing the performance of 2d keypoint 
+detectors against the COCO wholebody hand dataset. Adds 2d keypoint data from [HaMeR](https://github.com/geopavlakos/hamer), [SynthMoCap](https://github.com/microsoft/SynthMoCap), and [CoCo Wholebody](https://github.com/jin-s13/COCO-WholeBody) and also compares the performance of DINOv3 and MAE backbone for this task.
 
 This repository was built using the repository from [ViTPose](https://github.com/ViTAE-Transformer/ViTPose/blob/main/mmpose/datasets/datasets/hand/hand_coco_wholebody_dataset.py),
 using backbones from MAE, [DINOv2](https://github.com/facebookresearch/dinov2), and [DINOv3](https://github.com/facebookresearch/dinov3).The instructions below will build the environment and fetch the data. Proceed after cloning repository into your machine.
 
 ## 1. Environment Setup
-A setup script has been prepared to ensure reproducibility. Doing this setup requires conda be installed on the machine.
+A setup script has been prepared to ensure reproducibility. Doing this setup requires conda be installed on the machine. Do not upgrade packages, as some surgery had to be done to integrate DINOv3 (a pytorch v2 repository) into the ViTPose repository.
 
 To set up the environment:
 ```bash
@@ -33,7 +32,7 @@ data/
     └── annotations/coco_wholebody_{train,val}_v1.0.json
 ```
 
-`REPO/data` is the expected location for this data for training, but you can easily place the data in the follow instructions in another directory if desired.
+`REPO/data` is the expected location for this data for training, but you can easily place the data in another directory if desired.
 If this is done, it is simplest to keep this other directory in the same format, and symlink REPO/data with your other directory. For each extraction script below, you may call it using
 `DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`.
 
@@ -45,7 +44,7 @@ bash scripts/fetch_hamer_data.sh      # gdown from Google Drive; Dropbox URLs in
 bash scripts/extract_hamer_data.sh    # outer .tar.gz then nested dataset tar shards
 WORKERS=$(nproc) bash scripts/convert_all_annotations.sh
 ```
-Note that you may run `REMOVE=1 bash scrpts/...` in order to delete any tars after they have been deleted or extracted, if you are concerned about running out of memory.
+Note that you may run `REMOVE=1 bash scrpts/...` in order to delete any tars after they have been downloaded or extracted, if you are concerned about running out of memory.
 
 ### 2b. SynthMoCap (SynthHand, ~7GB)
 
@@ -99,9 +98,12 @@ wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth -P
 
 ### 3b. DINOv3 Backbone
 Acquiring this backbone requires going through links on Meta's [DINOv3 repository](https://github.com/facebookresearch/dinov3). You must request access by clicking 
-into one of the models, and you will be given download links in a follow-up email
+into one of the models, and you will be given download links in a follow-up email. For example, the base model was used at `pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth`.
 
 ## 4. Train
-
-ViTpose's repository can be consulted for more information on utilizing their pipeline. Our config for our models exist in 
-`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`.
+Training is done through the infrastructure built for ViTPose, and you may see that repository for further instructions on running training. Our training config exists in 
+`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`, and example of running training using the DINOv3 and MAE backbone, all data, and on a single machine is 
+```bash
+bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/DINOv3_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
+bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/ViTPose_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
+```
