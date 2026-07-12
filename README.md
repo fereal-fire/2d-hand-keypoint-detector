@@ -34,7 +34,7 @@ data/
 
 `REPO/data` is the expected location for this data for training, but you can easily place the data in another directory if desired.
 If this is done, it is simplest to keep this other directory in the same format, and symlink REPO/data with your other directory. For each extraction script below, you may call it using
-`DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`.
+`DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`. We will refer to the directory you place the data as `<DATA_DIR>`.
 
 ### 2a. HaMeR training data (~300 GB)
 `fetch_hamer_data.sh` has been adapted from `fetch_training_data.sh` from the HaMeR repository.
@@ -53,10 +53,10 @@ Downloader needs its own Python 3.10 env (separate from the training env) and
 system `wget`. You may find additional instructions at the [SynthMoCap Repository](https://github.com/microsoft/SynthMoCap.git).
 
 ```bash
-conda create -n synthmocap python=3.10 pip -y && conda activate synthmocap # Not used after data extraction so does not need to be done in <REPO>
-git clone https://github.com/microsoft/SynthMoCap.git && cd SynthMoCap
+conda create -n synthmocap python=3.10 pip -y && conda activate synthmocap 
+git clone https://github.com/microsoft/SynthMoCap.git && cd SynthMoCap # Not used after data extraction so does not need to be done in <REPO>
 pip install -r requirements.txt
-python download_data.py --dataset hand --output-dir <REPO>/data/   # -> data/synth_hand/
+python download_data.py --dataset hand --output-dir <DATA_DIR>/synthmocap/
 cd <REPO>
 ```
 
@@ -66,7 +66,7 @@ order; the `--reorder` mapping below converts to COCO hand order. This is the on
 ```bash
 conda activate 2dKeypointHand
 python scripts/convert_synthmocap.py \
-    --input-dir data/synth_hand \
+    --input-dir data/synthmocap/synth_hand \
     --reorder "0,13,14,15,20,1,2,3,16,4,5,6,17,10,11,12,19,7,8,9,18" \
     --workers 8
 ```
