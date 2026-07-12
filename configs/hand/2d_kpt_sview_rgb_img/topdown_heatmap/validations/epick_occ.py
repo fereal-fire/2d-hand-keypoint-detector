@@ -108,7 +108,7 @@ val_pipeline = [
 
 test_pipeline = val_pipeline
 
-data_root = '/mnt/hamer_datasets'
+data_root = 'data/hamer'
 
 data = dict(
     samples_per_gpu=32,
@@ -118,8 +118,8 @@ data = dict(
     train=[],
     test=dict(
         type='FreihandHamerHandDataset',
-        ann_file=f'/mnt/hamer_datasets/hamer_ego4d_coco/out_epick_occ/annotations_val_subset_2.json',
-        img_prefix=f'/mnt/hamer_datasets/HInt_annotation_partial/TEST_epick_img/',
+        ann_file=f'{data_root}/hamer_ego4d_coco/out_epick_occ/coco_annotations.json',
+        img_prefix=f'{data_root}/HInt_annotation_partial/TEST_epick_img/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}))

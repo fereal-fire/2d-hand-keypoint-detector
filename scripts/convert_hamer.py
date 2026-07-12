@@ -230,7 +230,7 @@ def main():
     out_dir = Path(args.output_dir) if args.output_dir else input_dir / "annotations"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    output_train_json = out_dir / "coco_annotations_2.json"
+    output_train_json = out_dir / "coco_annotations.json"
 
     reorder = load_reorder_mapping(args.reorder)
 

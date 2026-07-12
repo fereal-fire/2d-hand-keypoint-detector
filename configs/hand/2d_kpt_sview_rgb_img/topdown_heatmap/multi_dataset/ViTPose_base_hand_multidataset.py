@@ -2,9 +2,8 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/synthmocap_hand.py'
 ]
-checkpoint_config = dict(interval=1)
-evaluation = dict(
-    interval=2, metric=['PCK', 'AUC', 'EPE'], key_indicator='AUC')
+evaluation = dict(interval=1, metric=['PCK', 'AUC', 'EPE'], key_indicator='AUC')
+checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
 optimizer = dict(
     type='Adam',
@@ -25,7 +24,6 @@ log_config = dict(
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
     ])
-
 channel_cfg = dict(
     num_output_channels=21,
     dataset_joints=21,
@@ -43,18 +41,27 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained='/home/alexw/pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
+    pretrained=None,
     backbone=dict(
-        type='DINOv3',
+        type='ViT',
         img_size=(256, 256),
         patch_size=16,
         embed_dim=768,
         depth=12,
+        num_heads=12,
+        ratio=1,
+        use_checkpoint=False,
+        mlp_ratio=4,
+        qkv_bias=True,
         drop_path_rate=0.3,
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
         in_channels=768,
+        num_deconv_layers=2,
+        num_deconv_filters=(256, 256),
+        num_deconv_kernels=(4, 4),
+        extra=dict(final_conv_kernel=1, ),
         out_channels=channel_cfg['num_output_channels'],
         loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
@@ -66,7 +73,7 @@ model = dict(
 
 data_cfg = dict(
     image_size=[256, 256],
-    heatmap_size=[128, 128],
+    heatmap_size=[64, 64],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],
@@ -109,7 +116,7 @@ val_pipeline = [
 
 test_pipeline = val_pipeline
 
-data_root = '/mnt/hamer_datasets'
+data_root = 'data'
 data = dict(
     samples_per_gpu=32,
     workers_per_gpu=2,
@@ -118,92 +125,93 @@ data = dict(
     train=[
         dict(
         type='FreihandHamerHandDataset',
-        ann_file=f'{data_root}/freihand/annotations/annotations_train',
-        img_prefix=f'{data_root}/freihand/freihand-train/',
+        ann_file=f'{data_root}/hamer/freihand-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/freihand/freihand-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='SynthMocapHandDataset',
-        ann_file=f'/mnt/coco/synthmocap/annotations/synthmocap_train.json',
-        img_prefix=f'/mnt/coco/synthmocap/synth_hand/',
+        ann_file=f'{data_root}/synthmocap/synth_hand/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/synthmocap/synth_hand/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='HandCocoWholeBodyDataset',
-        ann_file=f'/mnt/coco/coco/annotations/coco_wholebody_train_v1.0.json',
-        img_prefix=f'/mnt/coco/coco/train2017/',
+        ann_file=f'{data_root}/coco/annotations/coco_wholebody_train_v1.0.json',
+        img_prefix=f'{data_root}/coco/train2017/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='Dexs0HandDataset',
-        ann_file=f'{data_root}/dex/annotations/annotations_train',
-        img_prefix=f'{data_root}/dex/dexs0-train/',
+        ann_file=f'{data_root}/hamer/dexs0-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/dexs0-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='H2O3DHandDataset',
-        ann_file=f'{data_root}/h2o3d/annotations/annotations_train',
-        img_prefix=f'{data_root}/h2o3d/h2o3d-train/',
+        ann_file=f'{data_root}/hamer/h2o3d-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/h2o3d-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='HO3DHandDataset',
-        ann_file=f'{data_root}/ho3d/annotations/annotations_train',
-        img_prefix=f'{data_root}/ho3d/ho3d-train/',
+        ann_file=f'{data_root}/hamer/ho3d-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/ho3d-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='HalpeHandDataset',
-        ann_file=f'{data_root}/halpe/annotations/annotations_train',
-        img_prefix=f'{data_root}/halpe/halpe-train/',
+        ann_file=f'{data_root}/hamer/halpe-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/halpe-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='InterHand26MDataset',
-        ann_file=f'{data_root}/interhand26m/annotations/annotations_train',
-        img_prefix=f'{data_root}/interhand26m/interhand26m-train/',
+        ann_file=f'{data_root}/hamer/interhand26m-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/interhand26m-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='MPIINZSLHandDataset',
-        ann_file=f'{data_root}/mpiinzsl/annotations/annotations_train',
-        img_prefix=f'{data_root}/mpiinzsl/mpiinzsl-train/',
+        ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/mpiinzsl-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='MTCHandDataset',
-        ann_file=f'{data_root}/mtc/annotations/annotations_train',
-        img_prefix=f'{data_root}/mtc/mtc-train/',
+        ann_file=f'{data_root}/hamer/mtc-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/mtc-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='RHDHandDataset',
-        ann_file=f'{data_root}/rhd/annotations/annotations_train',
-        img_prefix=f'{data_root}/rhd/rhd-train/',
+        ann_file=f'{data_root}/hamer/rhd-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/rhd-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
-        dataset_info={{_base_.dataset_info}}),],
+        dataset_info={{_base_.dataset_info}}),
+        ],
     val=dict(
         type='HandCocoWholeBodyDataset',
-        ann_file=f'/mnt/coco/coco/annotations/coco_wholebody_val_v1.0.json',
-        img_prefix=f'{data_root}/val2017/',
+        ann_file=f'{data_root}/coco/annotations/coco_wholebody_val_v1.0.json',
+        img_prefix=f'{data_root}/coco/val2017/',
         data_cfg=data_cfg,
         pipeline=val_pipeline,
         dataset_info={{_base_.dataset_info}}),
     test=dict(
         type='HandCocoWholeBodyDataset',
-        ann_file=f'/mnt/coco/coco/annotations/coco_wholebody_val_v1.0.json',
-        img_prefix=f'{data_root}/val2017/',
+        ann_file=f'{data_root}/coco/annotations/coco_wholebody_val_v1.0.json',
+        img_prefix=f'{data_root}/coco/val2017/',
         data_cfg=data_cfg,
         pipeline=test_pipeline,
         dataset_info={{_base_.dataset_info}}),

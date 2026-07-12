@@ -341,7 +341,7 @@ def main():
         image_id += 1
         ann_id += 1
 
-    output_train_json = out_dir / "coco_synthmocap_annotation.json"
+    output_train_json = out_dir / "coco_annotations.json"
     output_train_json.parent.mkdir(parents=True, exist_ok=True)
     with output_train_json.open("w") as f:
         json.dump(coco, f)
