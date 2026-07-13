@@ -27,7 +27,7 @@ data/
 │   └── <dataset>/annotations/coco_annotations.json   # produced by converter
 ├── SynthMoCap/synth_hand/                     # SynthMoCap SynthHand
 │   └── annotations/coco_synthmocap_annotation.json
-├── coco/                           # COCO images + WholeBody hand annotations
+└── coco/                           # COCO images + WholeBody hand annotations
     ├── train2017/  val2017/
     └── annotations/coco_wholebody_{train,val}_v1.0.json
 ```
@@ -36,7 +36,7 @@ data/
 If this is done, it is simplest to keep this other directory in the same format, and symlink REPO/data with your other directory. For each extraction script below, you may call it using
 `DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`. We will refer to the directory you place the data as `<DATA_DIR>`.
 
-### 2a. HaMeR training data (~300 GB)
+### 2a. HaMeR training data (200 GB after extraction, around ~400 needed for full extraction process)
 `fetch_hamer_data.sh` has been adapted from `fetch_training_data.sh` from the HaMeR repository.
 
 ```bash
@@ -46,7 +46,7 @@ WORKERS=$(nproc) bash scripts/convert_all_annotations.sh
 ```
 Note that you may run `REMOVE=1 bash scrpts/...` in order to delete any tars after they have been downloaded or extracted, if you are concerned about running out of memory.
 
-### 2b. SynthMoCap (SynthHand, ~7GB)
+### 2b. SynthMoCap (SynthHand, ~8GB)
 
 Downloader needs its own Python 3.10 env (separate from the training env) and
 **your own logins for https://amass.is.tue.mpg.de/ and https://mano.is.tue.mpg.de/**. Also needs
@@ -60,7 +60,7 @@ python download_data.py --dataset hand --output-dir <DATA_DIR>/synthmocap/
 cd <REPO>
 ```
 
-Convert (back in the training env). SynthMoCap stores landmarks in MANO+tips
+Convert SynthMoCap (done back in the training env). SynthMoCap stores landmarks in MANO+tips
 order; the `--reorder` mapping below converts to COCO hand order. This is the only dataset that needs reordering:
 
 ```bash
@@ -77,7 +77,7 @@ SynthMoCap's `visualize_data.py`. Verify visually with
 `scripts/visualize_predictions.py` on a few samples: a wrong mapping shows up
 instantly as crossed fingers.)
 
-### 2c. COCO-WholeBody (hand subset)
+### 2c. COCO-WholeBody (~41GB)
 
 ```bash
 bash scripts/fetch_coco.sh                      # val2017, train2017, and annotations
