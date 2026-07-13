@@ -42,7 +42,7 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained='/home/alexw/pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
+    pretrained='pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
     backbone=dict(
         type='DINOv3',
         img_size=(256, 256),

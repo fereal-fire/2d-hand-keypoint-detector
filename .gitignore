@@ -1,4 +1,3 @@
-
 # Large model/data artifacts
 
 # Generated outputs
@@ -10,6 +9,7 @@ mmpose.egg-info/
 # Python/cache
 __pycache__/
 *.pyc
+wget-log
 
 # Keep placeholders/docs if needed
 !work_dirs/.gitkeep
