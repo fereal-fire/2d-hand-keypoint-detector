@@ -24,7 +24,6 @@ log_config = dict(
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
     ])
-
 channel_cfg = dict(
     num_output_channels=21,
     dataset_joints=21,
@@ -42,19 +41,27 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained='pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
+    pretrained=None,
     backbone=dict(
-        type='DINOv3',
-        img_size=(256, 256),
+        type='ViT',
+        img_size=(256, 192),
         patch_size=16,
-        embed_dim=768,
-        depth=12,
+        embed_dim=1280,
+        depth=32,
+        num_heads=16,
+        ratio=1,
+        use_checkpoint=False,
+        mlp_ratio=4,
+        qkv_bias=True,
         drop_path_rate=0.3,
-        arch='vit_base',
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
-        in_channels=768,
+        in_channels=1280,
+        num_deconv_layers=2,
+        num_deconv_filters=(256, 256),
+        num_deconv_kernels=(4, 4),
+        extra=dict(final_conv_kernel=1, ),
         out_channels=channel_cfg['num_output_channels'],
         loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
@@ -66,7 +73,7 @@ model = dict(
 
 data_cfg = dict(
     image_size=[256, 256],
-    heatmap_size=[128, 128],
+    heatmap_size=[64, 64],
     num_output_channels=channel_cfg['num_output_channels'],
     num_joints=channel_cfg['dataset_joints'],
     dataset_channel=channel_cfg['dataset_channel'],
@@ -119,7 +126,7 @@ data = dict(
         dict(
         type='FreihandHamerHandDataset',
         ann_file=f'{data_root}/hamer/freihand-train/annotations/coco_annotations.json',
-        img_prefix=f'{data_root}/hamer/freihand-train/',
+        img_prefix=f'{data_root}/hamer/freihand/freihand-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),

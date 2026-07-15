@@ -50,7 +50,7 @@ model = dict(
         embed_dim=768,
         depth=12,
         drop_path_rate=0.3,
-        arch='vit_base',
+        arch='vit_small',
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',

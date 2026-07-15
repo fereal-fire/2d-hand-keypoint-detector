@@ -42,19 +42,19 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained='pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
+    pretrained='pretrained/dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth',
     backbone=dict(
         type='DINOv3',
         img_size=(256, 256),
         patch_size=16,
-        embed_dim=768,
-        depth=12,
+        # embed_dim=768,
+        # depth=12,
         drop_path_rate=0.3,
-        arch='vit_base',
+        arch='vit_huge',
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
-        in_channels=768,
+        in_channels=1024,
         out_channels=channel_cfg['num_output_channels'],
         loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),
     train_cfg=dict(),
