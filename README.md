@@ -27,11 +27,11 @@ data/
 │   └── <dataset>/annotations/coco_annotations.json   # produced by converter
 ├── SynthMoCap/synth_hand/                     # SynthMoCap SynthHand
 │   └── annotations/coco_synthmocap_annotation.json
-└── coco/                           # COCO images + WholeBody hand annotations
-    ├── train2017/  val2017/
-    └── annotations/coco_wholebody_{train,val}_v1.0.json
+├── coco/                           # COCO images + WholeBody hand annotations
+│   ├── train2017/  val2017/
+│   └── annotations/coco_wholebody_{train,val}_v1.0.json
+└── hamer_evaluation_data/
 ```
-
 `REPO/data` is the expected location for this data for training, but you can easily place the data in another directory if desired.
 If this is done, it is simplest to keep this other directory in the same format, and symlink REPO/data with your other directory. For each extraction script below, you may call it using
 `DATA_ROOT=<DATA_ROOT> bash script/...` to overwrite the default `<REPO>/data`. We will refer to the directory you place the data as `<DATA_DIR>`.
@@ -106,4 +106,16 @@ Training is done through the infrastructure built for ViTPose, and you may see t
 ```bash
 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/DINOv3_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/ViTPose_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
+```
+
+## 5. Eval
+Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the `<DATA_ROOT>` directory, i.e.
+```bash
+wget -c 'https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?rlkey=nb4x10uc8mj2qlfq934t5mdlh&dl=1'      -O hamer_evaluation_data.tar.gz
+tar -xzf hamer_evaluation_data.tar.gz -C <DATA_REPO>
+rm hamer_evaluation_data.tar.gz
+```
+Then, you may run an evaluation against using HaMeR's PCK calculator with 
+```bash
+python scripts/eval_PCK.py 
 ```
