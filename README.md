@@ -98,7 +98,11 @@ wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth -P
 
 ### 3b. DINOv3 Backbone
 Acquiring this backbone requires going through links on Meta's [DINOv3 repository](https://github.com/facebookresearch/dinov3). You must request access by clicking 
-into one of the models, and you will be given download links in a follow-up email. For example, the base model was used at `pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth`.
+into one of the models, and you will be given download links in a follow-up email. Note that these links likely need to be put into quotation marks (' ') in order to be parsed correctly, and -O should be used to ensure that the model is named in accordance with the model configuration's expectations, i.e. 
+```bash
+wget 'https:/...dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth...' -O pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
+```
+Configuration exists for `dinov3_vits16_pretrain_lvd1689m-08c60483.pth` (ViT-S/16 distilled), `dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth` (ViT-B/16 distilled), `dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth` (ViT-L/16 distilled), and `dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth` (ViT-H+/16 distilled).
 
 ## 4. Train
 Training is done through the infrastructure built for ViTPose, and you may see that repository for further instructions on running training. Our training config exists in 
@@ -109,10 +113,10 @@ bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi
 ```
 
 ## 5. Eval
-Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the `<DATA_ROOT>` directory, i.e.
+Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the data directory, i.e.
 ```bash
 wget -c 'https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?rlkey=nb4x10uc8mj2qlfq934t5mdlh&dl=1'      -O hamer_evaluation_data.tar.gz
-tar -xzf hamer_evaluation_data.tar.gz -C <DATA_REPO>
+tar -xzf hamer_evaluation_data.tar.gz -C data/
 rm hamer_evaluation_data.tar.gz
 ```
 Then, you may run an evaluation against using HaMeR's PCK calculator with 
