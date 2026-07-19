@@ -105,12 +105,16 @@ wget 'https:/...dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth...' -O pretrained/d
 Configuration exists for `dinov3_vits16_pretrain_lvd1689m-08c60483.pth` (ViT-S/16 distilled), `dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth` (ViT-B/16 distilled), `dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth` (ViT-L/16 distilled), and `dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth` (ViT-H+/16 distilled).
 
 ## 4. Train
-Training is done through the infrastructure built for ViTPose, and you may see that repository for further instructions on running training. Our training config exists in 
-`<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`, and example of running training using the DINOv3 and MAE backbone, all data, and on a single machine is 
+Training is done through the infrastructure built for ViTPose. Configuration is put into files and passed directly into the training command, and you may additionally overwrite this configuration using the `--config-options` argument.  Our training config exists in `<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`. An example of running the training command:
 ```bash
 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/DINOv3_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/ViTPose_base_hand_multidataset.py <NUM_GPUS> --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth
 ```
+You can also modify the batch size by setting `data.samples_per_gpu`, and you can specify which gpus to use by using `CUDA_VISIBLE_DEVICES`, i.e.
+```bash
+CUDA_VISIBLE_DEVICES=2,3 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/DINOv3_base_hand_multidataset.py 2 --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth data.samples_per_gpu=64
+```
+trains on GPUs 2 and 3, with a batch size of 64, and an effective batch size of 128.
 
 ## 5. Eval
 Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the data directory, i.e.
