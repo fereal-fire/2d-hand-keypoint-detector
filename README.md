@@ -124,7 +124,7 @@ You can also modify the batch size by setting `data.samples_per_gpu`, and you ca
 ```bash
 CUDA_VISIBLE_DEVICES=2,3 bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset/DINOv3_base_hand_multidataset.py 2 --cfg-options model.pretrained=pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth data.samples_per_gpu=64
 ```
-trains on GPUs 2 and 3, with a batch size of 64, and an effective batch size of 128.
+trains on GPUs 2 and 3 with a batch size of 64 and an effective batch size of 128.
 
 ## 5. Eval
 Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the data directory, i.e.
