@@ -91,9 +91,9 @@ These will go into the `<REPO>/pretrained/` directory. These form one of the axe
 ### 3a. MAE Backbone
 This is the same backbone that ViTPose was trained with. Download links are found at the [MAE Repository](https://github.com/facebookresearch/mae), for example:
 ```bash
-wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth -P pretrained/
-wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_large.pth -P pretrained/
-wget -c https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth -P pretrained/
+wget https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth -P pretrained/
+wget https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_large.pth -P pretrained/
+wget https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_huge.pth -P pretrained/
 ```
 
 ### 3b. DINOv3 Backbone
@@ -115,7 +115,7 @@ bash tools/dist_train.sh configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi
 ## 5. Eval
 Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the data directory, i.e.
 ```bash
-wget -c 'https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?rlkey=nb4x10uc8mj2qlfq934t5mdlh&dl=1'      -O hamer_evaluation_data.tar.gz
+wget 'https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?rlkey=nb4x10uc8mj2qlfq934t5mdlh&dl=1'      -O hamer_evaluation_data.tar.gz
 tar -xzf hamer_evaluation_data.tar.gz -C data/
 rm hamer_evaluation_data.tar.gz
 ```
