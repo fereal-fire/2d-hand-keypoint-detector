@@ -104,6 +104,16 @@ wget 'https:/...dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth...' -O pretrained/d
 ```
 Configuration exists for `dinov3_vits16_pretrain_lvd1689m-08c60483.pth` (ViT-S/16 distilled), `dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth` (ViT-B/16 distilled), `dinov3_vitl16_pretrain_lvd1689m-8aa4cbdd.pth` (ViT-L/16 distilled), and `dinov3_vith16plus_pretrain_lvd1689m-7c1da9a5.pth` (ViT-H+/16 distilled).
 
+### 3c. Eval Datasets
+Eval is done using the infrastructure from [HaMeR](https://github.com/geopavlakos/hamer). You may download the [evaluation data](https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?e=1&rlkey=nb4x10uc8mj2qlfq934t5mdlh) and extract it to the data directory, i.e.
+```bash
+wget 'https://www.dropbox.com/scl/fi/7ip2vnnu355e2kqbyn1bc/hamer_evaluation_data.tar.gz?rlkey=nb4x10uc8mj2qlfq934t5mdlh&dl=1'      -O hamer_evaluation_data.tar.gz
+tar -xzf hamer_evaluation_data.tar.gz -C data/
+rm hamer_evaluation_data.tar.gz
+```
+
+Then, it's annotations may be converted to the format required by ViTPose via running
+
 ## 4. Train
 Training is done through the infrastructure built for ViTPose. Configuration is put into files and passed directly into the training command, and you may additionally overwrite this configuration using the `--config-options` argument.  Our training config exists in `<REPO>/configs/hand/2d_kpt_sview_rgb_img/topdown_heatmap/multi_dataset`. An example of running the training command:
 ```bash
