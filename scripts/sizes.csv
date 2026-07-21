@@ -1,0 +1,10 @@
+group,subset,n_images,n_annotations,status,path
+hamer,dexs0-train,6566,6566,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/dexs0-train/annotations/coco_annotations.json
+hamer,freihand-train,6567,6567,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/freihand-train/annotations/coco_annotations.json
+hamer,h2o3d-train,3283,6566,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/h2o3d-train/annotations/coco_annotations.json
+hamer,halpe-train,12689,19701,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/halpe-train/annotations/coco_annotations.json
+hamer,ho3d-train,6566,6566,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/ho3d-train/annotations/coco_annotations.json
+hamer,interhand26m-train,24380,32833,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/interhand26m-train/annotations/coco_annotations.json
+hamer,mpiinzsl-train,15184,15184,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/mpiinzsl-train/annotations/coco_annotations.json
+hamer,mtc-train,11062,13133,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/mtc-train/annotations/coco_annotations.json
+hamer,rhd-train,4380,6566,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/rhd-train/annotations/coco_annotations.json

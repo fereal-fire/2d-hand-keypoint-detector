@@ -1,27 +1,41 @@
 #!/usr/bin/env python3
-"""Compose model from one config + test set from another, run inference, score
-with HaMeR's own EvaluatorPCK.
+"""Evaluate one model on HInt dataset/splits with HaMeR-style PCK. Self-contained:
+no per-split test configs and no hamer import needed.
 
-Steps:
-  1. load MODEL_CONFIG and take its `model` (+ runtime) section
-  2. replace its data.test with the `data.test` dict from TEST_CONFIG
-  3. run MMPose inference (equivalent of tools/test.py) over that test set
-  4. match predictions to the HInt GT npz and compute HaMeR PCK@thresholds
+For each dataset/split it takes the model config's own data.test dict and
+overrides ann_file/img_prefix to point at that split's converted COCO JSON and
+image dir, runs MMPose inference (model is built and loaded once), then scores
+predictions against the HInt GT npz with an inlined copy of HaMeR's EvaluatorPCK.
 
-Requires the hamer repo on PYTHONPATH (for hamer.utils.pose_utils.EvaluatorPCK).
+Expected data layout (override roots via flags):
+  <npz-dir>/TEST_{name}_img_{split}.npz                 # HaMeR eval GT
+  <npz-dir>/annotations/hint_TEST_{name}_img_{split}.json  # from convert_HInt_npz.py
+  data/HInt_annotation_partial/TEST_{name}_img/         # eval images
+<npz-dir> defaults to the first of data/hamer_evaluation_data,
+data/hamer/hamer_evaluation_data that exists.
 
 Usage:
-    python scripts/eval_composed.py \
+    python scripts/eval_pck.py \
         configs/.../DINOv3_base_hand_multidataset.py \
         work_dirs/DINOv3_base_hand_multidataset/epoch_30.pth \
-        configs/.../hint_newdays_all_test.py \
-        --npz data/hamer_evaluation_data/TEST_newdays_img_all.npz \
-        --out model_predictions/newdays_all/epoch_30.pkl
+        --datasets NEWDAYS-TEST-ALL NEWDAYS-TEST-VIS NEWDAYS-TEST-OCC \
+                   EPICK-TEST-ALL EPICK-TEST-VIS EPICK-TEST-OCC
+
+Dataset identifiers follow HaMeR's eval.py convention: <NAME>-TEST-<SPLIT>
+with NAME in {NEWDAYS, EPICK, EGO4D} and SPLIT in {ALL, VIS, OCC}.
+A single comma-separated string is also accepted.
 """
-from typing import Dict, List, Optional
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
+import patch_version ## Custom
+
 import argparse
+import copy
+import datetime
 import os
 import pickle
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -33,15 +47,11 @@ from mmpose.apis import single_gpu_test
 from mmpose.datasets import build_dataloader, build_dataset
 from mmpose.models import build_posenet
 
-##--------------------------------
+
+# ---- HaMeR's EvaluatorPCK (inlined from hamer.utils.pose_utils) -------------
+
 class EvaluatorPCK:
-    def __init__(self, thresholds: List = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5],):
-        """
-        Class used for evaluating trained models on different 3D pose datasets.
-        Args:
-            thresholds [List]: List of PCK thresholds to evaluate.
-            metrics [List]: List of evaluation metrics to record.
-        """
+    def __init__(self, thresholds: List = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]):
         self.thresholds = thresholds
         self.pred_kp_2d = []
         self.gt_kp_2d = []
@@ -49,28 +59,11 @@ class EvaluatorPCK:
         self.scale = []
         self.counter = 0
 
-    def log(self):
-        """
-        Print current evaluation metrics
-        """
-        if self.counter == 0:
-            print('Evaluation has not started')
-            return
-        print(f'{self.counter} samples')
-        metrics_dict = self.get_metrics_dict()
-        for metric in metrics_dict:
-            print(f'{metric}: {metrics_dict[metric]}')
-        print('***')
-
     def get_metrics_dict(self) -> Dict:
-        """
-        Returns:
-            Dict: Dictionary of evaluation metrics.
-        """
         pcks = self.compute_pcks()
         metrics = {}
-        for thr, (acc,avg_acc,cnt) in zip(self.thresholds, pcks):
-            metrics.update({f'kp{i}_pck_{thr}': float(a) for i, a in enumerate(acc) if a>=0})
+        for thr, (acc, avg_acc, cnt) in zip(self.thresholds, pcks):
+            metrics.update({f'kp{i}_pck_{thr}': float(a) for i, a in enumerate(acc) if a >= 0})
             metrics.update({f'kpAvg_pck_{thr}': float(avg_acc)})
         return metrics
 
@@ -81,90 +74,53 @@ class EvaluatorPCK:
         scale = np.concatenate(self.scale, axis=0)
         assert pred_kp_2d.shape == gt_kp_2d.shape
         assert pred_kp_2d[..., 0].shape == gt_conf_2d.shape
-        assert pred_kp_2d.shape[1] == 1 # num_samples
-        assert scale.shape[0] == gt_conf_2d.shape[0] # num_samples
+        assert pred_kp_2d.shape[1] == 1  # num_samples
+        assert scale.shape[0] == gt_conf_2d.shape[0]
 
-        pcks = [
+        return [
             self.keypoint_pck_accuracy(
                 pred_kp_2d[:, 0, :, :],
                 gt_kp_2d[:, 0, :, :],
-                gt_conf_2d[:, 0, :]>0.5,
+                gt_conf_2d[:, 0, :] > 0.5,
                 thr=thr,
-                scale = scale[:,None]
+                scale=scale[:, None],
             )
             for thr in self.thresholds
         ]
-        return pcks
 
     def keypoint_pck_accuracy(self, pred, gt, conf, thr, scale):
-        dist = np.sqrt(np.sum((pred-gt)**2, axis=2))
-        all_joints = conf>0.5
-        correct_joints = np.logical_and(dist<=scale*thr, all_joints)
-        pck = correct_joints.sum(axis=0)/all_joints.sum(axis=0)
+        dist = np.sqrt(np.sum((pred - gt) ** 2, axis=2))
+        all_joints = conf > 0.5
+        correct_joints = np.logical_and(dist <= scale * thr, all_joints)
+        pck = correct_joints.sum(axis=0) / all_joints.sum(axis=0)
         return pck, pck.mean(), pck.shape[0]
 
     def __call__(self, output: Dict, batch: Dict, opt_output: Optional[Dict] = None):
-        """
-        Evaluate current batch.
-        Args:
-            output (Dict): Regression output.
-            batch (Dict): Dictionary containing images and their corresponding annotations.
-            opt_output (Dict): Optimization output.
-        """
         pred_keypoints_2d = output['pred_keypoints_2d'].detach()
         num_samples = 1
         batch_size = pred_keypoints_2d.shape[0]
 
         right = batch['right'].detach()
-        pred_keypoints_2d[:,:,0] = (2*right[:,None]-1)*pred_keypoints_2d[:,:,0]
+        pred_keypoints_2d[:, :, 0] = (2 * right[:, None] - 1) * pred_keypoints_2d[:, :, 0]
         box_size = batch['box_size'].detach()
         box_center = batch['box_center'].detach()
         bbox_expand_factor = batch['bbox_expand_factor'].detach()
-        scale = box_size/bbox_expand_factor
-        bbox_expand_factor = bbox_expand_factor[:,None,None,None]
-        pred_keypoints_2d = pred_keypoints_2d*box_size[:,None,None]+box_center[:,None]
-        pred_keypoints_2d = pred_keypoints_2d[:,None,:,:]
-        gt_keypoints_2d = batch['orig_keypoints_2d'][:,None,:,:].repeat(1, num_samples, 1, 1)
-        
+        scale = box_size / bbox_expand_factor
+        pred_keypoints_2d = pred_keypoints_2d * box_size[:, None, None] + box_center[:, None]
+        pred_keypoints_2d = pred_keypoints_2d[:, None, :, :]
+        gt_keypoints_2d = batch['orig_keypoints_2d'][:, None, :, :].repeat(1, num_samples, 1, 1)
+
         self.pred_kp_2d.append(pred_keypoints_2d[:, :, :, :2].detach().cpu().numpy())
         self.gt_conf_2d.append(gt_keypoints_2d[:, :, :, -1].detach().cpu().numpy())
         self.gt_kp_2d.append(gt_keypoints_2d[:, :, :, :2].detach().cpu().numpy())
         self.scale.append(scale.detach().cpu().numpy())
 
         self.counter += batch_size
-##--------------------------------
-
-def build_composed_cfg(model_config: str, test_config: str) -> Config:
-    """Model/runtime from model_config; data.test (+ pipeline) from test_config."""
-    cfg = Config.fromfile(model_config)
-    tcfg = Config.fromfile(test_config)
-
-    cfg.data.test = tcfg.data.test
-    if 'test_dataloader' in tcfg.data:
-        cfg.data.test_dataloader = tcfg.data.test_dataloader
-
-    # We load trained weights explicitly; don't re-download the backbone init.
-    cfg.model.pretrained = None
-    return cfg
 
 
-def run_inference(cfg: Config, checkpoint: str, samples_per_gpu: int):
-    dataset = build_dataset(cfg.data.test, dict(test_mode=True))
-    dataloader = build_dataloader(
-        dataset,
-        samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=cfg.data.get('workers_per_gpu', 2),
-        dist=False,
-        shuffle=False,
-    )
-    model = build_posenet(cfg.model)
-    load_checkpoint(model, checkpoint, map_location='cpu')
-    model = MMDataParallel(model, device_ids=[0])
-    return single_gpu_test(model, dataloader)
-
+# ---- scoring (from eval_vitpose_hint.py) ------------------------------------
 
 def score_hamer_pck(outputs, npz_path: str, thresholds):
-    """Adapted from eval_vitpose_hint.py: EvaluatorPCK over HInt GT npz."""
     d = np.load(npz_path, allow_pickle=True)
     names = [n.decode() if isinstance(n, bytes) else str(n) for n in d['imgname']]
     center = d['center'].astype(np.float64)                        # (N,2) px
@@ -213,41 +169,131 @@ def score_hamer_pck(outputs, npz_path: str, thresholds):
         }
         evaluator(output, batch)
 
-    md = evaluator.get_metrics_dict()
-    print(f'\n=== HaMeR PCK for {os.path.basename(npz_path)} ===')
-    for thr in thresholds:
-        key = f'kpAvg_pck_{thr}'
-        if key in md:
-            print(f'  PCK@{thr}: {md[key]:.4f}')
-    return md
+    return evaluator.get_metrics_dict()
 
+
+# ---- main --------------------------------------------------------------------
+
+DEFAULT_DATASETS = [
+    'NEWDAYS-TEST-ALL', 'NEWDAYS-TEST-VIS', 'NEWDAYS-TEST-OCC',
+    'EPICK-TEST-ALL', 'EPICK-TEST-VIS', 'EPICK-TEST-OCC',
+]
+
+VALID_NAMES = {'NEWDAYS': 'newdays', 'EPICK': 'epick', 'EGO4D': 'ego4d'}
+VALID_SPLITS = {'ALL': 'all', 'VIS': 'vis', 'OCC': 'occ'}
+
+
+def parse_dataset_id(dataset_id: str):
+    """'NEWDAYS-TEST-ALL' -> ('newdays', 'all'). HaMeR eval.py naming."""
+    parts = dataset_id.upper().split('-')
+    if len(parts) != 3 or parts[1] != 'TEST' or \
+            parts[0] not in VALID_NAMES or parts[2] not in VALID_SPLITS:
+        raise ValueError(
+            f"Bad dataset id '{dataset_id}': expected <NAME>-TEST-<SPLIT> with "
+            f"NAME in {sorted(VALID_NAMES)} and SPLIT in {sorted(VALID_SPLITS)}")
+    return VALID_NAMES[parts[0]], VALID_SPLITS[parts[2]]
 
 def main():
     ap = argparse.ArgumentParser(
-        description='Compose model cfg + test cfg, run inference, score with HaMeR PCK')
-    ap.add_argument('model_config', help='config providing model/runtime (e.g. training config)')
+        description='HaMeR-PCK eval of one model over HInt dataset/splits (no test configs needed)')
+    ap.add_argument('model_config', help='config providing model + data.test template')
     ap.add_argument('checkpoint', help='trained checkpoint .pth')
-    ap.add_argument('test_config', help='config providing data.test (dataset to run on)')
-    ap.add_argument('--npz', required=True, help='HInt GT npz for scoring')
+    ap.add_argument('--datasets', nargs='+', default=DEFAULT_DATASETS,
+                    help="dataset ids like NEWDAYS-TEST-ALL (HaMeR eval.py style); "
+                         "space- or comma-separated")
+    ap.add_argument('--data-root', default='data/hamer')
+    ap.add_argument('--img-root', default=None, help='default: <data-root>/HInt_annotation_partial')
+    ap.add_argument('--npz-dir', default=None,
+                    help='default: <data-root>/hamer_evaluation_data')
+    ap.add_argument('--ann-dir', default=None, help='default: <npz-dir>/annotations')
     ap.add_argument('--thresholds', type=float, nargs='+', default=[0.05, 0.1, 0.15])
     ap.add_argument('--samples-per-gpu', type=int, default=32)
-    ap.add_argument('--out', default=None, help='optional path to save predictions pkl')
+    ap.add_argument('--pred-dir', default='model_predictions', help='where to save prediction pkls')
     args = ap.parse_args()
 
-    cfg = build_composed_cfg(args.model_config, args.test_config)
-    print(f'Model from:   {args.model_config}')
-    print(f'Test set from: {args.test_config}')
-    print(f"Test ann_file: {cfg.data.test.get('ann_file')}")
+    data_root = Path(args.data_root)
+    img_root = Path(args.img_root) if args.img_root else data_root / 'HInt_annotation_partial'
+    npz_dir = Path(args.npz_dir) if args.npz_dir else data_root / 'hamer_evaluation_data'
+    ann_dir = Path(args.ann_dir) if args.ann_dir else npz_dir / 'annotations'
 
-    outputs = run_inference(cfg, args.checkpoint, args.samples_per_gpu)
+    cfg = Config.fromfile(args.model_config)
+    cfg.model.pretrained = None 
+    
+    model = build_posenet(cfg.model)
+    load_checkpoint(model, args.checkpoint, map_location='cpu')
+    model = MMDataParallel(model, device_ids=[0])
 
-    if args.out:
-        os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
-        with open(args.out, 'wb') as f:
+    run = Path(args.checkpoint).stem
+    model_name = Path(args.model_config).stem
+
+    # accept both space-separated args and a single comma-separated string
+    dataset_ids = [d for arg in args.datasets for d in arg.split(',') if d]
+    combos = [parse_dataset_id(d) for d in dataset_ids]
+
+    results = []   # (name, split, metrics_dict)
+    failures = []
+
+    for name, split in combos:
+        tag = f'{name}_{split}'
+        img_prefix = img_root / f'TEST_{name}_img'
+        ann_file = ann_dir / f'hint_TEST_{name}_img_{split}.json'
+        npz = npz_dir / f'TEST_{name}_img_{split}.npz'
+
+        missing = [p for p in (ann_file, img_prefix, npz) if not p.exists()]
+        if missing:
+            print(f'[SKIP] {tag}: missing ' + ', '.join(str(m) for m in missing))
+            failures.append(tag)
+            continue
+
+        print(f'\n===== {tag} =====')
+
+        # data.test template from the model config, retargeted at this split
+        test_dict = copy.deepcopy(cfg.data.test)
+        test_dict['ann_file'] = str(ann_file)
+        test_dict['img_prefix'] = str(img_prefix) + '/'
+
+        dataset = build_dataset(test_dict, dict(test_mode=True))
+        dataloader = build_dataloader(
+            dataset,
+            samples_per_gpu=args.samples_per_gpu,
+            workers_per_gpu=cfg.data.get('workers_per_gpu', 2),
+            dist=False,
+            shuffle=False,
+        )
+
+        try:
+            outputs = single_gpu_test(model, dataloader)
+        except Exception as e:  # noqa: BLE001
+            print(f'[FAIL] {tag}: inference failed: {e}')
+            failures.append(tag)
+            continue
+
+        preds_path = Path(args.pred_dir) / tag / f'{run}.pkl'
+        preds_path.parent.mkdir(parents=True, exist_ok=True)
+        with preds_path.open('wb') as f:
             pickle.dump(outputs, f)
-        print(f'Saved predictions to {args.out}')
 
-    score_hamer_pck(outputs, args.npz, args.thresholds)
+        md = score_hamer_pck(outputs, str(npz), args.thresholds)
+        print(f'=== HaMeR PCK for {npz.name} ===')
+        for thr in args.thresholds:
+            key = f'kpAvg_pck_{thr}'
+            if key in md:
+                print(f'  PCK@{thr}: {md[key]:.4f}')
+        results.append((name, split, md))
+
+    # ---- summary ----
+    if results:
+        print(f'\n===== Summary: {model_name} {run} =====')
+        header = f"{'dataset':10s} {'split':5s}" + ''.join(f'  PCK@{t:<5g}' for t in args.thresholds)
+        print(header)
+        for name, split, md in results:
+            row = f'{name:10s} {split:5s}'
+            row += ''.join(f"  {md.get(f'kpAvg_pck_{t}', float('nan')):8.4f}" for t in args.thresholds)
+            print(row)
+
+    if failures:
+        print(f'\nFailed/skipped: {", ".join(failures)}')
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':
