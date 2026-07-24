@@ -8,3 +8,4 @@ hamer,interhand26m-train,24380,32833,ok,/home/alexw/2d-hand-keypoint-detector/da
 hamer,mpiinzsl-train,15184,15184,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/mpiinzsl-train/annotations/coco_annotations.json
 hamer,mtc-train,11062,13133,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/mtc-train/annotations/coco_annotations.json
 hamer,rhd-train,4380,6566,ok,/home/alexw/2d-hand-keypoint-detector/data/hamer/rhd-train/annotations/coco_annotations.json
+synthmocap,synth_hand,13134,ok,/home/alexw/2d-hand-keypoint-detector/data/synthmocap/synth_hand/annotations/coco_annotations.json
