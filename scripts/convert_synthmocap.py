@@ -2,6 +2,7 @@
 import os
 import json
 import math
+import random
 import argparse
 import multiprocessing as mp
 from pathlib import Path
@@ -293,8 +294,21 @@ def main():
     parser.add_argument(
         "--workers",
         type=int,
-        default=4,
+        default=1,
         help="Number of parallel worker processes (default: 1)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=709,
+        help="Seed used to shuffle the files before applying --size (default: 709, matches convert_hamer.py)",
+    )
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=-1,
+        help="Max number of samples to convert (-1 for all). One annotation per image here, "
+             "so this caps both images and annotations.",
     )
 
     args = parser.parse_args()
@@ -304,9 +318,12 @@ def main():
     reorder = load_reorder_mapping(args.reorder)
 
     metadata_files = sorted(input_dir.glob(args.glob))
-    metadata_files = metadata_files
     if not metadata_files:
         raise FileNotFoundError(f"No files matched {args.glob} in {input_dir}")
+
+    random.Random(args.seed).shuffle(metadata_files)
+    n = len(metadata_files) if args.size < 0 else min(len(metadata_files), args.size)
+    metadata_files = metadata_files[:n]
 
     coco = {
         "info": {

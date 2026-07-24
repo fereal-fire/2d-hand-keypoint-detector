@@ -84,7 +84,7 @@ for dataset_dir in "${HAMER_ROOT}"/*/; do
 
   # Skip non-dataset directories
   case "${name}" in
-    raw_archives|hamer_training_data|annotations) continue ;;
+    raw_archives|hamer_training_data|annotations|cocow-train) continue ;;
   esac
 
   # Only convert directories that actually contain HaMeR metadata files
