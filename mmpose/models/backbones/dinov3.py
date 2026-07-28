@@ -28,7 +28,7 @@ class DINOv3(BaseBackbone):
         proj_bias=True,
         ffn_bias=True,
         norm_layer='layernorm',
-        n_storage_tokens=0,
+        n_storage_tokens=4,
         drop_path_rate=0.3,
         mask_k_bias=False,
         untie_cls_and_patch_norms=False,

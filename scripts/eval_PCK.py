@@ -25,17 +25,19 @@ Dataset identifiers follow HaMeR's eval.py convention: <NAME>-TEST-<SPLIT>
 with NAME in {NEWDAYS, EPICK, EGO4D} and SPLIT in {ALL, VIS, OCC}.
 A single comma-separated string is also accepted.
 """
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
-import patch_version ## Custom
-
 import argparse
 import copy
 import datetime
 import os
 import pickle
+import sys
+from pathlib import Path
 from typing import Dict, List, Optional
+
+# Torch compat shim (adds F.scaled_dot_product_attention on older torch).
+# Must run before any model code is imported.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
+import patch_version  # noqa: E402,F401  ## Custom
 
 import numpy as np
 import torch
@@ -193,6 +195,15 @@ def parse_dataset_id(dataset_id: str):
             f"NAME in {sorted(VALID_NAMES)} and SPLIT in {sorted(VALID_SPLITS)}")
     return VALID_NAMES[parts[0]], VALID_SPLITS[parts[2]]
 
+
+def find_default_npz_dir(data_root: Path) -> Path:
+    for cand in (data_root / 'hamer_evaluation_data',
+                 data_root / 'hamer' / 'hamer_evaluation_data'):
+        if cand.is_dir():
+            return cand
+    return data_root / 'hamer_evaluation_data'
+
+
 def main():
     ap = argparse.ArgumentParser(
         description='HaMeR-PCK eval of one model over HInt dataset/splits (no test configs needed)')
@@ -201,24 +212,27 @@ def main():
     ap.add_argument('--datasets', nargs='+', default=DEFAULT_DATASETS,
                     help="dataset ids like NEWDAYS-TEST-ALL (HaMeR eval.py style); "
                          "space- or comma-separated")
-    ap.add_argument('--data-root', default='data/hamer')
+    ap.add_argument('--data-root', default='data')
     ap.add_argument('--img-root', default=None, help='default: <data-root>/HInt_annotation_partial')
     ap.add_argument('--npz-dir', default=None,
-                    help='default: <data-root>/hamer_evaluation_data')
+                    help='default: <data-root>/hamer_evaluation_data or '
+                         '<data-root>/hamer/hamer_evaluation_data (first that exists)')
     ap.add_argument('--ann-dir', default=None, help='default: <npz-dir>/annotations')
     ap.add_argument('--thresholds', type=float, nargs='+', default=[0.05, 0.1, 0.15])
     ap.add_argument('--samples-per-gpu', type=int, default=32)
-    ap.add_argument('--pred-dir', default='model_predictions', help='where to save prediction pkls')
+    ap.add_argument('--pred-dir', default='model_predictions',
+                    help="where to save prediction pkls ('' to skip saving)")
     args = ap.parse_args()
 
     data_root = Path(args.data_root)
-    img_root = Path(args.img_root) if args.img_root else data_root / 'HInt_annotation_partial'
-    npz_dir = Path(args.npz_dir) if args.npz_dir else data_root / 'hamer_evaluation_data'
+    img_root = Path(args.img_root) if args.img_root else data_root / 'hamer/HInt_annotation_partial'
+    npz_dir = Path(args.npz_dir) if args.npz_dir else find_default_npz_dir(data_root)
     ann_dir = Path(args.ann_dir) if args.ann_dir else npz_dir / 'annotations'
 
     cfg = Config.fromfile(args.model_config)
-    cfg.model.pretrained = None 
-    
+    cfg.model.pretrained = None  # trained checkpoint supplies all weights
+
+    # Build + load the model ONCE, reuse across datasets.
     model = build_posenet(cfg.model)
     load_checkpoint(model, args.checkpoint, map_location='cpu')
     model = MMDataParallel(model, device_ids=[0])
@@ -259,6 +273,7 @@ def main():
             workers_per_gpu=cfg.data.get('workers_per_gpu', 2),
             dist=False,
             shuffle=False,
+            drop_last=False,  # mmpose default is True -> silently drops last partial batch
         )
 
         try:
@@ -268,10 +283,11 @@ def main():
             failures.append(tag)
             continue
 
-        preds_path = Path(args.pred_dir) / tag / f'{run}.pkl'
-        preds_path.parent.mkdir(parents=True, exist_ok=True)
-        with preds_path.open('wb') as f:
-            pickle.dump(outputs, f)
+        if args.pred_dir:
+            preds_path = Path(args.pred_dir) / tag / f'{run}.pkl'
+            preds_path.parent.mkdir(parents=True, exist_ok=True)
+            with preds_path.open('wb') as f:
+                pickle.dump(outputs, f)
 
         md = score_hamer_pck(outputs, str(npz), args.thresholds)
         print(f'=== HaMeR PCK for {npz.name} ===')
