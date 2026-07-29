@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 checkpoint_config = dict(interval=10)
 
 log_config = dict(
@@ -10,7 +12,7 @@ log_config = dict(
 log_level = 'INFO'
 load_from = None
 resume_from = None
-dist_params = dict(backend='nccl')
+dist_params = dict(backend='nccl', timeout=timedelta(minutes=10))
 workflow = [('train', 1)]
 
 # disable opencv multithreading to avoid system being overloaded
