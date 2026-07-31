@@ -53,7 +53,7 @@ class DINOv2(BaseBackbone):
                                 "drop_path_rate": drop_path_rate,
                                 "drop_path_uniform": drop_path_uniform,
                                 "channel_adaptive": channel_adaptive})
-        self.dino, self.embed_dim = build_model(args, only_teacher=True, img_size = self.img_size)
+        self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
 
     def init_weights(self, pretrained=None):
         super().init_weights(pretrained)
