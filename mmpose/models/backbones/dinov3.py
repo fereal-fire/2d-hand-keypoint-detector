@@ -65,7 +65,7 @@ class DINOv3(BaseBackbone):
                                 "untie_cls_and_patch_norms": untie_cls_and_patch_norms,
                                 "untie_global_and_local_cls_norm": untie_global_and_local_cls_norm, 
                                 "fp8_enabled": fp8_enabled})
-        self.dino, self.embed_dim = build_model(args, only_teacher=True, img_size = self.img_size)
+        self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
 
     def init_weights(self, pretrained=None):
         super().init_weights(pretrained, patch_padding=self.patch_padding)
