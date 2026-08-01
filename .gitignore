@@ -15,3 +15,6 @@ wget-log
 # Keep placeholders/docs if needed
 !work_dirs/.gitkeep
 !pretrained/README.md
+
+# Hacks
+mmpose/models/backbones/vit.py

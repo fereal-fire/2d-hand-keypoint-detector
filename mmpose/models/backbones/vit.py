@@ -202,7 +202,7 @@ class ViT(BaseBackbone):
 
     def __init__(self,
                  img_size=224, patch_size=16, in_chans=3, num_classes=80, embed_dim=768, depth=12,
-                 num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
+                 num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_path_uniform=False, drop_rate=0., attn_drop_rate=0.,
                  drop_path_rate=0., hybrid_backbone=None, norm_layer=None, use_checkpoint=False, 
                  frozen_stages=-1, ratio=1, last_norm=True,
                  patch_padding='pad', freeze_attn=False, freeze_ffn=False,
@@ -230,7 +230,10 @@ class ViT(BaseBackbone):
         # since the pretraining model has class token
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
 
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
+        if drop_path_uniform:
+            dpr = [drop_path_rate for _ in range(depth)]  # Custom, uniform stochastic depth decay rule made for closer comparison to DINOv3
+        else:
+            dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # ViTPose default, stochastic depth decay rule
 
         self.blocks = nn.ModuleList([
             Block(
