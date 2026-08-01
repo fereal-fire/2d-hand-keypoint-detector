@@ -21,7 +21,7 @@ class DINOv2(BaseBackbone):
         qkv_bias=True,
         proj_bias=True,
         ffn_bias=True,
-        num_register_tokens=0,
+        num_register_tokens=4,
         interpolate_offset=0.1,
         interpolate_antialias=False,
         in_chans=3,
