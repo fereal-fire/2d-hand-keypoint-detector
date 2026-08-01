@@ -388,8 +388,8 @@ def load_checkpoint(model,
 
         if hasattr(model.patch_embed, 'patch_shape'):
             H, W = model.patch_embed.patch_shape
-        elif hasattr(model, 'patch_embed.patches_resolution'):
-            raise NotImplementedError("DINOv2 does not have patch_shape attribute, please use patch_embed.patches_resolution instead")
+        elif hasattr(model.patch_embed, 'patches_resolution'):
+            # DINOv2 PatchEmbed exposes the patch grid as patches_resolution
             H, W = model.patch_embed.patches_resolution
         else:
             # DINO does not have patch_shape attribute

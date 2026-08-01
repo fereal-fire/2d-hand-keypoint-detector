@@ -54,6 +54,10 @@ class DINOv2(BaseBackbone):
                                 "drop_path_uniform": drop_path_uniform,
                                 "channel_adaptive": channel_adaptive})
         self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
+        # mask_token is only used in masked SSL pretraining (masks is not None);
+        # freeze it so DDP doesn't flag it as an unused parameter
+        if getattr(self.dino, 'mask_token', None) is not None:
+            self.dino.mask_token.requires_grad_(False)
 
     def init_weights(self, pretrained=None):
         super().init_weights(pretrained, patch_padding=self.patch_padding)
