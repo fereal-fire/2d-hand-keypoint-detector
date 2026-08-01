@@ -56,7 +56,7 @@ class DINOv2(BaseBackbone):
         self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
 
     def init_weights(self, pretrained=None):
-        super().init_weights(pretrained)
+        super().init_weights(pretrained, patch_padding=self.patch_padding)
         
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

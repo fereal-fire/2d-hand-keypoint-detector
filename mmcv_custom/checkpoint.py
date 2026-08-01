@@ -357,7 +357,7 @@ def load_checkpoint(model,
 
         # strip prefix for dino
     if list(state_dict.keys())[0].startswith('dino.'):
-        state_dict = {k.replace('dino.', ''): v for xk, v in state_dict.items() if k.startswith('dino.')}
+        state_dict = {k.replace('dino.', ''): v for k, v in state_dict.items() if k.startswith('dino.')}
 
     # strip model params
     if hasattr(model, 'dino'):
@@ -388,6 +388,9 @@ def load_checkpoint(model,
 
         if hasattr(model.patch_embed, 'patch_shape'):
             H, W = model.patch_embed.patch_shape
+        elif hasattr(model, 'patch_embed.patches_resolution'):
+            raise NotImplementedError("DINOv2 does not have patch_shape attribute, please use patch_embed.patches_resolution instead")
+            H, W = model.patch_embed.patches_resolution
         else:
             # DINO does not have patch_shape attribute
             p_h, p_w = model.patch_embed.proj.kernel_size
