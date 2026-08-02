@@ -41,7 +41,7 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained=None,
+    pretrained='pretrained/mae_pretrain_vit_base.pth',
     backbone=dict(
         type='ViT',
         img_size=(256, 256),

@@ -306,6 +306,16 @@ def main():
             row = f'{name:10s} {split:5s}'
             row += ''.join(f"  {md.get(f'kpAvg_pck_{t}', float('nan')):8.4f}" for t in args.thresholds)
             print(row)
+            
+    if results:
+        print(f'\n===== Summary: {model_name} {run} =====')
+        header = f"{'dataset':10s} {'split':5s}" + ''.join(f'  PCK@{t:<5g}' for t in args.thresholds)
+        print(header)
+        for name, split, md in results:
+            row = f'{name:10s} {split:5s}'
+            row += ''.join(f"  {100*md.get(f'kpAvg_pck_{t}', float('nan')):8.1f}" for t in args.thresholds)
+            print(row)
+
 
     if failures:
         print(f'\nFailed/skipped: {", ".join(failures)}')
