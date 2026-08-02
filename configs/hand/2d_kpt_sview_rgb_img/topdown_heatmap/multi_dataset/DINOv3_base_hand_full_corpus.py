@@ -49,7 +49,7 @@ model = dict(
         patch_size=16,
         embed_dim=768,
         depth=12,
-        drop_path_rate=0.3,
+        drop_path_rate=0.0, 
         arch='vit_base',
     ),
     keypoint_head=dict(
