@@ -126,7 +126,7 @@ data = dict(
         dict(
         type='FreihandHamerHandDataset',
         ann_file=f'{data_root}/hamer/freihand-train/annotations/coco_annotations.json',
-        img_prefix=f'{data_root}/hamer/freihand/freihand-train/',
+        img_prefix=f'{data_root}/hamer/freihand-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
