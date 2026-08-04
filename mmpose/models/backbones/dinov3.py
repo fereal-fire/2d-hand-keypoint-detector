@@ -38,7 +38,7 @@ class DINOv3(BaseBackbone):
     ):
         super().__init__()
         
-        if arch == "vithplus":
+        if arch == "dinov3_vith16plus":
             from dinov3.hub import backbones as _hub
             self.dino = getattr(_hub, arch)(pretrained=False, **kwargs)
 
