@@ -37,35 +37,46 @@ class DINOv3(BaseBackbone):
         **kwargs,
     ):
         super().__init__()
-        self.patch_padding = patch_padding
-        self.arch = arch
-        self.img_size = img_size
-        self.patch_size = int(patch_size)
-        self.n_storage_tokens = int(n_storage_tokens)
-        self.strict = bool(strict)
         
-        args = OmegaConf.create({"arch": self.arch, 
-                                "patch_size": self.patch_size,
-                                "pos_embed_rope_base": pos_embed_rope_base,
-                                "pos_embed_rope_min_period": pos_embed_rope_min_period,
-                                "pos_embed_rope_max_period": pos_embed_rope_max_period ,
-                                "pos_embed_rope_normalize_coords": pos_embed_rope_normalize_coords,
-                                "pos_embed_rope_shift_coords": pos_embed_rope_shift_coords,
-                                "pos_embed_rope_jitter_coords": pos_embed_rope_jitter_coords,
-                                "pos_embed_rope_rescale_coords": pos_embed_rope_rescale_coords,
-                                "layerscale": layerscale,
-                                "ffn_layer": ffn_layer,
-                                "qkv_bias": qkv_bias,
-                                "proj_bias": proj_bias,
-                                "ffn_bias": ffn_bias,
-                                "norm_layer": norm_layer,
-                                "n_storage_tokens": self.n_storage_tokens,
-                                "drop_path_rate": drop_path_rate,
-                                "mask_k_bias": mask_k_bias,
-                                "untie_cls_and_patch_norms": untie_cls_and_patch_norms,
-                                "untie_global_and_local_cls_norm": untie_global_and_local_cls_norm, 
-                                "fp8_enabled": fp8_enabled})
-        self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
+        if arch == "vit_huge":
+            from dinov3.hub import backbones as _hub
+            self.dino = getattr(_hub, arch)(pretrained=False, **kwargs)
+
+            self.embed_dim = self.dino.embed_dim
+            self.patch_size = self.dino.patch_size
+            self.n_storage_tokens = self.dino.n_storage_tokens
+            self.strict = bool(strict)
+            
+        else:
+            self.patch_padding = patch_padding
+            self.arch = arch
+            self.img_size = img_size
+            self.patch_size = int(patch_size)
+            self.n_storage_tokens = int(n_storage_tokens)
+            self.strict = bool(strict)
+            
+            args = OmegaConf.create({"arch": self.arch, 
+                                    "patch_size": self.patch_size,
+                                    "pos_embed_rope_base": pos_embed_rope_base,
+                                    "pos_embed_rope_min_period": pos_embed_rope_min_period,
+                                    "pos_embed_rope_max_period": pos_embed_rope_max_period ,
+                                    "pos_embed_rope_normalize_coords": pos_embed_rope_normalize_coords,
+                                    "pos_embed_rope_shift_coords": pos_embed_rope_shift_coords,
+                                    "pos_embed_rope_jitter_coords": pos_embed_rope_jitter_coords,
+                                    "pos_embed_rope_rescale_coords": pos_embed_rope_rescale_coords,
+                                    "layerscale": layerscale,
+                                    "ffn_layer": ffn_layer,
+                                    "qkv_bias": qkv_bias,
+                                    "proj_bias": proj_bias,
+                                    "ffn_bias": ffn_bias,
+                                    "norm_layer": norm_layer,
+                                    "n_storage_tokens": self.n_storage_tokens,
+                                    "drop_path_rate": drop_path_rate,
+                                    "mask_k_bias": mask_k_bias,
+                                    "untie_cls_and_patch_norms": untie_cls_and_patch_norms,
+                                    "untie_global_and_local_cls_norm": untie_global_and_local_cls_norm, 
+                                    "fp8_enabled": fp8_enabled})
+            self.dino, _, self.embed_dim = build_model(args, img_size = self.img_size)
 
     def init_weights(self, pretrained=None):
         super().init_weights(pretrained, patch_padding=self.patch_padding)
@@ -90,3 +101,35 @@ class DINOv3(BaseBackbone):
 
         feat = patch_tokens.transpose(1, 2).reshape(B, C, Hp, Wp).contiguous()
         return feat
+    
+    
+# @BACKBONES.register_module()
+# class DINOv3Hub(BaseBackbone):
+#     """DINOv3 backbone built from dinov3/hub/backbones.py.
+
+#     Not build_model(): its vit_kwargs list is hand-written and omits ffn_ratio,
+#     and its defaults track ssl_default_config.yaml (the SSL *training* defaults)
+#     rather than the released checkpoints. The hub functions are the only place
+#     where architecture and checkpoint are guaranteed to agree.
+#     """
+
+#     def __init__(self, hub_name, drop_path_rate=0.0, strict=True, **kwargs):
+#         super().__init__()
+
+#     def init_weights(self, pretrained=None):
+#         super().init_weights(pretrained, patch_padding=self.patch_padding)
+
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         out_dict = self.dino.forward_features(x)
+#         patch_tokens = out_dict.get('x_norm_patchtokens', None)
+#         if patch_tokens is None:
+#             patch_tokens = out_dict['x_norm'][:, 1 + self.n_storage_tokens:, :]
+
+#         B, N, C = patch_tokens.shape
+#         H, W = x.shape[-2], x.shape[-1]
+#         Hp, Wp = H // self.patch_size, W // self.patch_size
+#         if Hp * Wp != N:
+#             raise ValueError(f'Token count mismatch: N={N} patches, but image '
+#                              f'{H}x{W} implies {Hp}x{Wp}={Hp*Wp} patches.')
+#         return patch_tokens.transpose(1, 2).reshape(B, C, Hp, Wp).contiguous()
