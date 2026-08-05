@@ -37,24 +37,19 @@ class DINOv3(BaseBackbone):
         **kwargs,
     ):
         super().__init__()
-        
-        if arch == "dinov3_vith16plus":
+        self.patch_padding = patch_padding
+        self.arch = arch
+        self.img_size = img_size
+        if arch == "dinov3_vith16plus" or arch == "dinov3_vitb16":
             from dinov3.hub import backbones as _hub
-            self.dino = getattr(_hub, arch)(pretrained=False, **kwargs)
+            self.dino = getattr(_hub, arch)(pretrained=False,drop_path_rate=drop_path_rate, **kwargs)
 
             self.embed_dim = self.dino.embed_dim
             self.patch_size = self.dino.patch_size
             self.n_storage_tokens = self.dino.n_storage_tokens
-            self.strict = bool(strict)
-            
-        else:
-            self.patch_padding = patch_padding
-            self.arch = arch
-            self.img_size = img_size
-            self.patch_size = int(patch_size)
+        else:            
             self.n_storage_tokens = int(n_storage_tokens)
-            self.strict = bool(strict)
-            
+            self.patch_size = int(patch_size)
             args = OmegaConf.create({"arch": self.arch, 
                                     "patch_size": self.patch_size,
                                     "pos_embed_rope_base": pos_embed_rope_base,

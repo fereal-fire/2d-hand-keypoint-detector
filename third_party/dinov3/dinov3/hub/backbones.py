@@ -287,7 +287,7 @@ def dinov3_vitb16(
         kwargs["hash"] = "73cec8be"
     kwargs["version"] = None
     return _make_dinov3_vit(
-        img_size=224,
+        # img_size=224,
         patch_size=16,
         in_chans=3,
         pos_embed_rope_base=100,
@@ -299,7 +299,7 @@ def dinov3_vitb16(
         num_heads=12,
         ffn_ratio=4,
         qkv_bias=True,
-        drop_path_rate=0.0,
+        # drop_path_rate=0.0,
         layerscale_init=1.0e-05,
         norm_layer="layernormbf16",
         ffn_layer="mlp",
@@ -421,7 +421,7 @@ def dinov3_vith16plus(
         kwargs["hash"] = "7c1da9a5"
 
     return _make_dinov3_vit(
-        img_size=224,
+        # img_size=224,
         patch_size=16,
         in_chans=3,
         pos_embed_rope_base=100,
@@ -433,7 +433,7 @@ def dinov3_vith16plus(
         num_heads=20,
         ffn_ratio=6.0,
         qkv_bias=True,
-        drop_path_rate=0.0,
+        # drop_path_rate=0.0,
         layerscale_init=1.0e-05,
         norm_layer="layernormbf16",
         ffn_layer="swiglu",

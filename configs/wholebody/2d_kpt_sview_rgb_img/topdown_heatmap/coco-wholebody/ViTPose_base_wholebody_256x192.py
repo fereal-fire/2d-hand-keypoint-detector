@@ -24,7 +24,12 @@ channel_cfg = dict(
         list(range(133)),
     ],
     inference_channel=list(range(133)))
-
+log_config = dict(
+    interval=1,
+    hooks=[
+        dict(type='TextLoggerHook'),
+        dict(type='TensorboardLoggerHook')
+    ])
 # model settings
 model = dict(
     type='TopDown',
@@ -69,9 +74,9 @@ data_cfg = dict(
     nms_thr=1.0,
     oks_thr=0.9,
     vis_thr=0.2,
-    use_gt_bbox=False,
+    use_gt_bbox=True,
     det_bbox_thr=0.0,
-    bbox_file='/mnt/coco/coco/person_detection_results/'
+    bbox_file='data/coco/person_detection_results/'
     'COCO_val2017_detections_AP_H_56_person.json',
 )
 
