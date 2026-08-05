@@ -2,6 +2,9 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/synthmocap_hand.py'
 ]
+
+# This config is identical to full_corpus. There was a change in DINOv3 backbone construction that caused a mismatch in the number of parameters between the pretrained weights and the model. This config is used to train a new set of weights with the corrected backbone construction.
+
 evaluation = dict(interval=1, metric=['PCK', 'AUC', 'EPE'], key_indicator='AUC')
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
@@ -17,13 +20,14 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=0.001,
     step=[170, 200])
-total_epochs = 8
+total_epochs = 7
 log_config = dict(
-    interval=100,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
     ])
+
 channel_cfg = dict(
     num_output_channels=21,
     dataset_joints=21,
@@ -41,19 +45,12 @@ channel_cfg = dict(
 # model settings
 model = dict(
     type='TopDown',
-    pretrained=None,
+    pretrained='pretrained/dinov3_vitb16_pretrain_lvd1689m-73cec8be.pth',
     backbone=dict(
-        type='ViT',
+        type='DINOv3',
         img_size=(256, 256),
-        patch_size=16,
-        embed_dim=768,
-        depth=12,
-        num_heads=12,
-        ratio=1,
-        use_checkpoint=False,
-        mlp_ratio=4,
-        qkv_bias=True,
         drop_path_rate=0.3,
+        arch='dinov3_vitb16',
     ),
     keypoint_head=dict(
         type='TopdownHeatmapSimpleHead',
@@ -130,13 +127,13 @@ data = dict(
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
-        # dict(
-        # type='SynthMocapHandDataset',
-        # ann_file=f'{data_root}/synthmocap/synth_hand/annotations/coco_annotations.json',
-        # img_prefix=f'{data_root}/synthmocap/synth_hand/',
-        # data_cfg=data_cfg,
-        # pipeline=train_pipeline,
-        # dataset_info={{_base_.dataset_info}}),
+        dict(
+        type='SynthMocapHandDataset',
+        ann_file=f'{data_root}/synthmocap/synth_hand/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/synthmocap/synth_hand/',
+        data_cfg=data_cfg,
+        pipeline=train_pipeline,
+        dataset_info={{_base_.dataset_info}}),
         dict(
         type='HandCocoWholeBodyDataset',
         ann_file=f'{data_root}/coco/annotations/coco_wholebody_train_v1.0.json',
@@ -181,18 +178,11 @@ data = dict(
         dataset_info={{_base_.dataset_info}}),
         dict(
         type='MPIINZSLHandDataset',
-        ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations_wild.json',
+        ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations.json',
         img_prefix=f'{data_root}/hamer/mpiinzsl-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
-        # dict(
-        # type='MPIINZSLHandDataset',
-        # ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations_synth.json',
-        # img_prefix=f'{data_root}/hamer/mpiinzsl-train/',
-        # data_cfg=data_cfg,
-        # pipeline=train_pipeline,
-        # dataset_info={{_base_.dataset_info}}),
         dict(
         type='MTCHandDataset',
         ann_file=f'{data_root}/hamer/mtc-train/annotations/coco_annotations.json',
@@ -200,13 +190,13 @@ data = dict(
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
-        # dict(
-        # type='RHDHandDataset',
-        # ann_file=f'{data_root}/hamer/rhd-train/annotations/coco_annotations.json',
-        # img_prefix=f'{data_root}/hamer/rhd-train/',
-        # data_cfg=data_cfg,
-        # pipeline=train_pipeline,
-        # dataset_info={{_base_.dataset_info}}),
+        dict(
+        type='RHDHandDataset',
+        ann_file=f'{data_root}/hamer/rhd-train/annotations/coco_annotations.json',
+        img_prefix=f'{data_root}/hamer/rhd-train/',
+        data_cfg=data_cfg,
+        pipeline=train_pipeline,
+        dataset_info={{_base_.dataset_info}}),
         ],
     val=dict(
         type='HandCocoWholeBodyDataset',
