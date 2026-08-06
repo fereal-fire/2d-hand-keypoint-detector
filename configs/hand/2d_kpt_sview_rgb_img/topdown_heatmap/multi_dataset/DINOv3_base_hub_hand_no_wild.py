@@ -2,9 +2,6 @@ _base_ = [
     '../../../../_base_/default_runtime.py',
     '../../../../_base_/datasets/synthmocap_hand.py'
 ]
-
-# This config is identical to full_corpus. There was a change in DINOv3 backbone construction that caused a mismatch in the number of parameters between the pretrained weights and the model. This config is used to train a new set of weights with the corrected backbone construction.
-
 evaluation = dict(interval=1, metric=['PCK', 'AUC', 'EPE'], key_indicator='AUC')
 checkpoint_config = dict(interval=1, max_keep_ckpts=1)
 
@@ -20,7 +17,7 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=0.001,
     step=[170, 200])
-total_epochs = 7
+total_epochs = 12
 log_config = dict(
     interval=100,
     hooks=[
@@ -134,13 +131,13 @@ data = dict(
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
-        dict(
-        type='HandCocoWholeBodyDataset',
-        ann_file=f'{data_root}/coco/annotations/coco_wholebody_train_v1.0.json',
-        img_prefix=f'{data_root}/coco/train2017/',
-        data_cfg=data_cfg,
-        pipeline=train_pipeline,
-        dataset_info={{_base_.dataset_info}}),
+        # dict(
+        # type='HandCocoWholeBodyDataset',
+        # ann_file=f'{data_root}/coco/annotations/coco_wholebody_train_v1.0.json',
+        # img_prefix=f'{data_root}/coco/train2017/',
+        # data_cfg=data_cfg,
+        # pipeline=train_pipeline,
+        # dataset_info={{_base_.dataset_info}}),
         dict(
         type='Dexs0HandDataset',
         ann_file=f'{data_root}/hamer/dexs0-train/annotations/coco_annotations.json',
@@ -162,13 +159,13 @@ data = dict(
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
-        dict(
-        type='HalpeHandDataset',
-        ann_file=f'{data_root}/hamer/halpe-train/annotations/coco_annotations.json',
-        img_prefix=f'{data_root}/hamer/halpe-train/',
-        data_cfg=data_cfg,
-        pipeline=train_pipeline,
-        dataset_info={{_base_.dataset_info}}),
+        # dict(
+        # type='HalpeHandDataset',
+        # ann_file=f'{data_root}/hamer/halpe-train/annotations/coco_annotations.json',
+        # img_prefix=f'{data_root}/hamer/halpe-train/',
+        # data_cfg=data_cfg,
+        # pipeline=train_pipeline,
+        # dataset_info={{_base_.dataset_info}}),
         dict(
         type='InterHand26MDataset',
         ann_file=f'{data_root}/hamer/interhand26m-train/annotations/coco_annotations.json',
@@ -176,9 +173,16 @@ data = dict(
         data_cfg=data_cfg,
         pipeline=train_pipeline,
         dataset_info={{_base_.dataset_info}}),
+        # dict(
+        # type='MPIINZSLHandDataset',
+        # ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations_wild.json',
+        # img_prefix=f'{data_root}/hamer/mpiinzsl-train/',
+        # data_cfg=data_cfg,
+        # pipeline=train_pipeline,
+        # dataset_info={{_base_.dataset_info}}),
         dict(
         type='MPIINZSLHandDataset',
-        ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations.json',
+        ann_file=f'{data_root}/hamer/mpiinzsl-train/annotations/coco_annotations_synth.json',
         img_prefix=f'{data_root}/hamer/mpiinzsl-train/',
         data_cfg=data_cfg,
         pipeline=train_pipeline,
